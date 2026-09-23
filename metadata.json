@@ -1,0 +1,7 @@
+{
+  "name": "SlitherAI - Laboratório de Rede Neural & Neuroevolução",
+  "description": "Simulador e laboratório interativo de rede neural e neuroevolução para treinar bots autônomos de Slither.io com visualização em tempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
