@@ -81,15 +81,3 @@ Você **não precisa** de Tampermonkey ou de nenhuma extensão de terceiro:
   - `0`: Ângulo de giro (Steer) em $[-1.0, 1.0]$ com ativação $\tanh$.
   - `1`: Ativação do turbo (Boost) em $[0.0, 1.0]$ com ativação $\text{Sigmoid} > 0.55$.
 
----
-
-## 🔄 Relação com o Framework Gym Neura Hub (`s_Neura_Gym`)
-
-O repositório pai (`s_Neura_Gym`) implementa a abordagem de **Aprendizado por Reforço Profundo (PPO)** orientada a contratos formais com loop contínuo online (`autoloop`), coleta de dados com agentes no navegador real e refinamento offline em VRAM.
-
-| Recurso | SlitherAI Studio (`slither/`) | Gym Neura Hub (`s_Neura_Gym/`) |
-| :--- | :--- | :--- |
-| **Algoritmo** | Neuroevolução Paralela em Tensores (ES/GA) | PPO (Proximal Policy Optimization) + GAE |
-| **Escala Paralela** | 1.024 a 2.048 cobras por `torch.bmm` em 1 GPU | Vetorizado multi-processo (`vecenv`) + Playwright |
-| **Interface de Jogo** | Injeção JS F12 + Canvas 2D Studio | Playwright CDP direto (`slither_browser`) |
-| **Uso Principal** | Prototipagem visual rápida, demo e script F12 | Treinamento autônomo L0/L1/L3, gates e benchmarks |
