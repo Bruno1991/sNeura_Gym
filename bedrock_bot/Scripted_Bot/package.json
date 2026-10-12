@@ -1,0 +1,21 @@
+{
+  "name": "saile-neura-gym-scripted-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "External scripted Minecraft Bedrock agent for the s_Neura_Gym project.",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test tests/**/*.test.js"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "bedrock-protocol": "^3.60.1"
+  },
+  "allowScripts": {
+    "raknet-native@1.2.3": true
+  }
+}
