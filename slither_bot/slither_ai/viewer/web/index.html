@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slither AI - Arena do Espectador</title>
+    <link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+    <!-- Canvas de Renderização da Arena -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD / Interface de Telemetria Superior Esquerda -->
+    <div class="hud hud-top-left">
+        <div class="hud-card">
+            <div class="badge badge-neural">IA EM OPERAÇÃO</div>
+            <h2 id="snakeName">NeuraBot_AI</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Comprimento</span>
+                    <span class="stat-val" id="statLength">10</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Abates</span>
+                    <span class="stat-val" id="statKills">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Velocidade</span>
+                    <span class="stat-val" id="statSpeed">4.2</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Turbo (Boost)</span>
+                    <span class="stat-val boost-indicator" id="statBoost">OFF</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HUD Central Superior: Status do Modelo e Cérebro -->
+    <div class="hud hud-top-center">
+        <div class="hud-pill">
+            <span class="dot dot-active"></span>
+            <span id="modelLabel">Carregando Modelo Neural...</span>
+        </div>
+    </div>
+
+    <!-- HUD Superior Direito: Conexão e FPS -->
+    <div class="hud hud-top-right">
+        <div class="hud-card hud-mini">
+            <div class="telemetry-row">
+                <span>FPS Visual:</span>
+                <strong id="fpsCounter">60</strong>
+            </div>
+            <div class="telemetry-row">
+                <span>Cobras Vivas:</span>
+                <strong id="snakesCount">0</strong>
+            </div>
+            <div class="telemetry-row">
+                <span>Comidas no Mapa:</span>
+                <strong id="foodsCount">0</strong>
+            </div>
+            <div class="telemetry-row">
+                <span>Status WS:</span>
+                <span id="wsStatus" class="status-online">Conectando...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- HUD Inferior: Painel de Controles do Espectador -->
+    <div class="hud hud-bottom">
+        <div class="hud-toolbar">
+            <button id="btnToggleLidar" class="btn btn-active" title="Ativar/Desativar feixes LIDAR">
+                👁️ Visão LIDAR: <span id="lidarStatus">LIGADA</span>
+            </button>
+            <button id="btnToggleCam" class="btn" title="Alternar entre câmera do bot ou arena">
+                🎥 Câmera: <span id="camStatus">SEGUIR BOT</span>
+            </button>
+            <button id="btnResetGame" class="btn btn-warning" title="Reiniciar arena">
+                🔄 Reiniciar Partida
+            </button>
+            <span class="hint-text">Use o Scroll do Mouse para Zoom in/out</span>
+        </div>
+    </div>
+
+    <script src="viewer.js"></script>
+</body>
+</html>

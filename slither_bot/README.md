@@ -32,8 +32,12 @@ Academia completa de treinamento por **Aprendizado por Máquina (Imitation Learn
    - **Fase 1 (Behavior Cloning):** Treina a rede neural imitando as decisões do bot nativo especialista (loss $< 0.02$).
    - **Fase 2 (PPO Reinforcement Learning):** Refinamento no ambiente Gymnasium `SlitherEnv` com recompensas por crescimento, abates e sobrevivência.
 
-6. **Conector Online Oficial:**
-   - Implementa o handshake criptográfico `wtfk` + **CRC32** decifrado da engine original e serialização de comandos em 1 byte de direção ($0\text{-}251$) e boost ($253/254$).
+7. **Arena do Espectador em Tempo Real (Zero Impacto no Treinamento):**
+   - **Arquitetura 100% Desacoplada:** O treinamento por reforço roda em modo Headless a velocidade pura de CPU/GPU (>135 a 10.000+ FPS), sem travas de interface ou renderização.
+   - **Live Web Spectator independente:** Servidor FastAPI + WebSocket que carrega qualquer checkpoint treinado (`.pt`) e renderiza uma partida a 60 FPS no navegador (`http://localhost:8080`) com:
+     - Visão dos 16 raios LIDAR em tempo real (laser verde/vermelho).
+     - HUD com abates, comprimento, velocidade e acionamento de turbo.
+     - Câmera suave seguindo o bot e controle de zoom pelo scroll do mouse.
 
 ---
 
@@ -57,6 +61,9 @@ c:\dev\s_Neura_Gym\slither_bot\
 │   ├── models\
 │   │   ├── policy_net.py              # Rede Neural Actor-Critic PyTorch
 │   │   └── inference.py               # Exportação TorchScript/ONNX e inferência rápida
+│   ├── viewer\                        # Live Web Spectator (Desacoplado)
+│   │   ├── server.py                  # Servidor FastAPI e streaming WebSocket
+│   │   └── web\                       # Frontend HTML5 Canvas, CSS e JS 60 FPS
 │   ├── training\
 │   │   ├── dataset.py                 # Coletor de demonstrações do Expert Bot
 │   │   ├── imitation_trainer.py       # Treinador por Imitação (Behavior Cloning)
@@ -71,12 +78,14 @@ c:\dev\s_Neura_Gym\slither_bot\
 │   ├── best_imitation_model.pt        # Modelo treinado por imitação do bot nativo
 │   ├── best_imitation_model_traced.pt # Modelo TorchScript standalone compilado
 │   └── best_ppo_model.pt              # Modelo refinado por PPO
-├── tests\                             # Suíte com 14 testes unitários automatizados
+├── tests\                             # Suíte com 16 testes automatizados (pytest)
 ├── scripts\
 │   ├── run_benchmark.py               # Benchmark de velocidade da física
+│   ├── run_spectator.py               # Inicia o servidor da arena do espectador
 │   ├── run_training_imitation.py      # Executa o treino por imitação
 │   ├── run_training_ppo.py            # Executa o treino PPO
 │   └── run_online_bot.py              # Inicia o bot em servidor online
+├── assistir-bot.bat                   # Atalho: Inicia o Live Spectator Web (localhost:8080)
 ├── benchmark.bat                      # Atalho: Executa o benchmark de performance
 ├── treinar-imitacao.bat               # Atalho: Treina por imitação
 ├── treinar-rl.bat                     # Atalho: Treina por reforço (PPO)
@@ -90,34 +99,41 @@ c:\dev\s_Neura_Gym\slither_bot\
 ## 3. Como Utilizar
 
 ### A. Atalhos com Duplo-Clique (Windows)
+- **`assistir-bot.bat`**: Inicia o servidor espectador em `http://localhost:8080`. Basta abrir o link no navegador para assistir a IA jogando a 60 FPS com os raios LIDAR ativos!
+- **`treinar-imitacao.bat`**: Treina a rede neural por imitação em segundos (velocidade máxima headless).
+- **`treinar-rl.bat`**: Roda o auto-treinamento por Aprendizado por Reforço (PPO) em velocidade máxima headless.
 - **`benchmark.bat`**: Mede a performance de simulação (FPS) da física local.
-- **`treinar-imitacao.bat`**: Coleta dados do Expert Bot e treina a rede neural por imitação em segundos.
-- **`treinar-rl.bat`**: Roda o auto-treinamento por Aprendizado por Reforço (PPO).
-- **`jogar-bot.bat`**: Solicita o IP do servidor (local ou oficial) e inicia o bot autônomo.
+- **`jogar-bot.bat`**: Conecta o bot diretamente em um servidor online oficial ou local.
 
 ### B. Linha de Comando (Terminal)
 
-1. **Rodar Testes Automatizados:**
+1. **Assistir ao Bot Jogando (Spectator):**
    ```powershell
-   python -m unittest discover tests
+   python scripts/run_spectator.py --port 8080
+   ```
+   *Abra `http://localhost:8080` no navegador para assistir em tempo real.*
+
+2. **Rodar Testes Automatizados:**
+   ```powershell
+   pytest tests/
    ```
 
-2. **Benchmark de FPS:**
+3. **Benchmark de FPS:**
    ```powershell
    python scripts/run_benchmark.py
    ```
 
-3. **Treinar Rede Neural por Imitação:**
+4. **Treinar Rede Neural por Imitação:**
    ```powershell
    python scripts/run_training_imitation.py
    ```
 
-4. **Treinar por Aprendizado por Reforço (PPO):**
+5. **Treinar por Aprendizado por Reforço (PPO):**
    ```powershell
    python scripts/run_training_ppo.py
    ```
 
-5. **Jogar no Servidor Online com a IA:**
+6. **Jogar no Servidor Online com a IA:**
    ```powershell
    python scripts/run_online_bot.py --host 127.0.0.1 --port 444 --nick NeuraBot_AI
    ```
