@@ -25,8 +25,8 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="checkpoints/best_imitation_model.pt",
-        help="Caminho para o checkpoint (.pt) ou 'native' para o bot do APK",
+        default=None,
+        help="Caminho para o checkpoint (.pt) ou 'native' para o bot do APK (padrão: auto-seleção do melhor modelo)",
     )
     parser.add_argument(
         "--episodes",
@@ -43,17 +43,31 @@ def main():
 
     args = parser.parse_args()
 
-    # Identifica o cérebro
-    is_native = args.model.lower() == "native"
+    # Identifica o modelo padrão caso não especificado
+    target_model = args.model
+    if target_model is None:
+        candidates = [
+            "checkpoints/master_bot_model.pt",
+            "checkpoints/best_imitation_model.pt",
+            "checkpoints/best_ppo_model.pt",
+        ]
+        for c in candidates:
+            if os.path.isfile(c):
+                target_model = c
+                break
+        if target_model is None:
+            target_model = "native"
+
+    is_native = str(target_model).lower() == "native"
     ai_brain = None
     model_name = "Bot Especialista Nativo (Slither APK)"
 
     if not is_native:
-        if os.path.isfile(args.model):
-            ai_brain = FastPyTorchInference(args.model, device="cuda" if os.environ.get("USE_CPU") != "1" else "cpu")
-            model_name = Path(args.model).name
+        if os.path.isfile(target_model):
+            ai_brain = FastPyTorchInference(target_model, device="cuda" if os.environ.get("USE_CPU") != "1" else "cpu")
+            model_name = Path(target_model).name
         else:
-            print(f"[!] Checkpoint '{args.model}' não encontrado. Usando Bot Nativo.")
+            print(f"[!] Checkpoint '{target_model}' não encontrado. Usando Bot Nativo.")
             is_native = True
 
     print("\n" + "=" * 65)

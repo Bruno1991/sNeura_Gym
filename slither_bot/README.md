@@ -36,8 +36,16 @@ Academia completa de treinamento por **Aprendizado por Máquina (Imitation Learn
 6. **Refinamento por Aprendizado por Reforço (PPO Self-Play):**
    - Inicia com os pesos do DAgger já competentes e otimiza a política no ambiente Gymnasium `SlitherEnv`.
 
-7. **Operação 100% Headless no Terminal (Máximo Rendimento de Hardware):**
-   - Todo o ecossistema roda diretamente pelo terminal aproveitando o máximo da GPU CUDA e dos núcleos da CPU sem travas ou overhead de renderização visual no navegador.
+7. **Motor de Treinamento Contínuo 24/7 para Maestria Neural:**
+   - Loop unificado ininterrupto que roda infinitamente até o bot atingir a meta estipulada de maestria (ex: 95%+).
+   - **Self-Play:** A rede neural joga contra versões históricas de si mesma e contra a IA especialista original.
+   - **Recompensas Predatórias Avançadas:** Recompensa massiva por abates e armadilhas (*cut-offs* com +80), crescimento de massa (+4) e penalidade severa por choque em paredes (-100).
+   - **Índice Oficial de Maestria (0% a 100%):** Bateria periódica de benchmark determinístico avaliando comprimento, abates, tempo de vida e taxa de sobrevivência à arena.
+   - **Pesos de Ouro (`master_bot_model.pt`):** Sempre que a IA bate seu recorde histórico em maestria ou abates, salva e compila automaticamente os pesos de ouro.
+   - **Interrupção Segura:** Pressione `Ctrl+C` a qualquer momento para finalizar com segurança mantendo todos os pesos e recordes intactos.
+
+8. **Operação 100% Headless no Terminal (Máximo Rendimento de Hardware):**
+   - Todo o ecossistema roda diretamente pelo terminal aproveitando o máximo da GPU CUDA (RTX 3060) e dos núcleos da CPU sem travas ou overhead de renderização visual no navegador.
    - Painel de telemetria e progresso em tempo real no próprio terminal com cálculo de FPS, abates e causas de morte.
 
 ---
@@ -66,7 +74,8 @@ c:\dev\s_Neura_Gym\slither_bot\
 │   │   ├── dataset.py                 # Coletor de demonstrações do Expert Bot
 │   │   ├── dagger_trainer.py          # Destilador Ativo DAgger (GPU Max Speed)
 │   │   ├── imitation_trainer.py       # Treinador por Imitação supervisionada
-│   │   └── ppo_trainer.py             # Treinador por Reforço (PPO)
+│   │   ├── ppo_trainer.py             # Treinador por Reforço (PPO)
+│   │   └── mastery_trainer.py         # Motor de Treinamento Contínuo 24/7 (Maestria)
 │   ├── online\
 │   │   ├── crypto.py                  # Handshake criptográfico challenge wtfk + CRC32
 │   │   ├── protocol.py                # Parser binário e montador de pacotes v5+
@@ -74,16 +83,20 @@ c:\dev\s_Neura_Gym\slither_bot\
 │   └── utils\
 │       └── math_helpers.py            # Geometria polar e conversões de bytes
 ├── checkpoints\                       # Modelos neurais treinados salvos
+│   ├── master_bot_model.pt            # Pesos de Ouro da IA (Melhor Desempenho Histórico)
+│   ├── master_bot_model_traced.pt     # Pesos de Ouro compilados para TorchScript
 │   ├── best_imitation_model.pt        # Pesos destilados via DAgger da IA do APK
 │   ├── best_imitation_model_traced.pt # Modelo compilado standalone TorchScript
 │   └── best_ppo_model.pt              # Modelo pré-semeado / refinado por PPO
-├── tests\                             # Suíte com 15 testes automatizados (pytest)
+├── tests\                             # Suíte com 17 testes automatizados (pytest)
 ├── scripts\
+│   ├── run_training_247.py            # Executa o Treinamento Contínuo 24/7 até a Maestria
 │   ├── run_training_dagger.py         # Executa a destilação DAgger na GPU
 │   ├── run_training_ppo.py            # Executa o auto-treinamento PPO
 │   ├── run_eval_terminal.py           # Avalia partidas no terminal em tempo real
 │   ├── run_benchmark.py               # Mede a taxa de FPS físico da engine
 │   └── run_online_bot.py              # Inicia o bot conectado a servidores online
+├── treinar-247-maestria.bat           # Atalho: Treinamento Contínuo 24/7 até Maestria (Pesos de Ouro)
 ├── treinar-dagger.bat                 # Atalho: Destila a IA do APK nos pesos neurais (GPU)
 ├── treinar-rl.bat                     # Atalho: Treina por reforço (PPO) com Warm Start
 ├── avaliar-bot.bat                    # Atalho: Executa partidas de teste no terminal
@@ -98,40 +111,46 @@ c:\dev\s_Neura_Gym\slither_bot\
 ## 3. Como Utilizar
 
 ### A. Atalhos com Duplo-Clique (Windows)
+- **`treinar-247-maestria.bat`**: Inicia o treinamento ininterrupto 24/7. Auto-play acelerado na GPU, ranking de recordes e salvamento contínuo dos pesos de ouro (`master_bot_model.pt`). Interrompa quando quiser com `Ctrl+C`.
 - **`treinar-dagger.bat`**: Transfere toda a inteligência da IA nativa do APK para a rede neural com aceleração de GPU (CUDA) e barra de progresso no terminal.
-- **`avaliar-bot.bat`**: Roda partidas completas no terminal em milhares de FPS e exibe o relatório de abates, comprimento e sobrevivência.
+- **`avaliar-bot.bat`**: Roda partidas completas no terminal em milhares de FPS e exibe o relatório de abates, comprimento e sobrevivência do melhor modelo existente.
 - **`treinar-rl.bat`**: Refina a rede neural via PPO partindo dos pesos já inteligentes do DAgger.
 - **`benchmark.bat`**: Mede a taxa de simulação física (FPS) da engine local.
-- **`jogar-bot.bat`**: Conecta a IA diretamente a um servidor online do Slither.io.
+- **`jogar-bot.bat`**: Conecta a IA diretamente a um servidor online do Slither.io usando os melhores pesos.
 
 ### B. Linha de Comando (Terminal)
 
-1. **Destilar Inteligência do APK via DAgger (GPU):**
+1. **Treinamento Contínuo 24/7 até Maestria (GPU):**
+   ```powershell
+   python scripts/run_training_247.py --target-mastery 95.0 --eval-interval 5
+   ```
+
+2. **Destilar Inteligência do APK via DAgger (GPU):**
    ```powershell
    python scripts/run_training_dagger.py --iterations 5 --steps 15000
    ```
 
-2. **Avaliar Desempenho no Terminal (Sem Interface Gráfica):**
+3. **Avaliar Desempenho no Terminal (Sem Interface Gráfica):**
    ```powershell
    python scripts/run_eval_terminal.py --episodes 20
    ```
 
-3. **Treinar por Aprendizado por Reforço (PPO com Warm Start):**
+4. **Treinar por Aprendizado por Reforço (PPO com Warm Start):**
    ```powershell
    python scripts/run_training_ppo.py
    ```
 
-4. **Executar Benchmark de Velocidade da Física:**
+5. **Executar Benchmark de Velocidade da Física:**
    ```powershell
    python scripts/run_benchmark.py
    ```
 
-5. **Rodar Testes Automatizados:**
+6. **Rodar Testes Automatizados:**
    ```powershell
    pytest tests/
    ```
 
-6. **Jogar no Servidor Online Oficial com a IA:**
+7. **Jogar no Servidor Online Oficial com a IA:**
    ```powershell
    python scripts/run_online_bot.py --host 127.0.0.1 --port 444 --nick NeuraBot_AI
    ```
