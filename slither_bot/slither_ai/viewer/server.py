@@ -5,7 +5,7 @@ import json
 import math
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional
 import numpy as np
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -21,15 +21,35 @@ from ..env.sensors import SlitherSensors
 from ..models.inference import FastPyTorchInference
 from ..utils.math_helpers import normalize_angle_two_pi
 
-# Cores vibrantes para cobras inimigas
-BOT_COLORS = [
-    "#a855f7", "#ec4899", "#f97316", "#eab308", 
-    "#84cc16", "#06b6d4", "#6366f1", "#f43f5e"
+# Cores vibrantes inspiradas nas skins clássicas e raras do Slither.io APK
+SNAKE_SKINS = [
+    {"name": "Esmeralda", "head": "#10b981", "body": ["#059669", "#34d399"], "border": "#064e3b"},
+    {"name": "Rubi Fogo", "head": "#ef4444", "body": ["#dc2626", "#f87171"], "border": "#7f1d1d"},
+    {"name": "Safira Elétrica", "head": "#3b82f6", "body": ["#2563eb", "#60a5fa"], "border": "#1e3a8a"},
+    {"name": "Ametista Neon", "head": "#a855f7", "body": ["#9333ea", "#c084fc"], "border": "#581c87"},
+    {"name": "Âmbar Solar", "head": "#f59e0b", "body": ["#d97706", "#fbbf24"], "border": "#78350f"},
+    {"name": "Ciano Ártico", "head": "#06b6d4", "body": ["#0891b2", "#22d3ee"], "border": "#164e63"},
+    {"name": "Rosa Choque", "head": "#ec4899", "body": ["#db2777", "#f472b6"], "border": "#831843"},
+    {"name": "Arco-Íris", "head": "#e11d48", "body": ["#f97316", "#eab308", "#10b981", "#06b6d4", "#6366f1", "#a855f7"], "border": "#4c0519"},
 ]
 
+# Skin especial para o bot do jogador espectador (Tecnologia IA NeuraBot)
+PLAYER_SKIN = {
+    "name": "NeuraBot_AI",
+    "head": "#00f0ff",
+    "body": ["#0ea5e9", "#00f0ff", "#38bdf8"],
+    "border": "#0369a1",
+}
 
-def create_spectator_app(model_path: Optional[str] = None) -> FastAPI:
+
+def create_spectator_app(default_brain: str = "native", model_path: Optional[str] = None) -> FastAPI:
     """Cria e configura a aplicação FastAPI para o espectador."""
+    if model_path:
+        if "ppo" in model_path.lower():
+            default_brain = "ppo"
+        elif "imitation" in model_path.lower():
+            default_brain = "imitation"
+
     app = FastAPI(title="Slither AI Spectator Arena")
 
     web_dir = Path(__file__).resolve().parent / "web"
@@ -47,35 +67,52 @@ def create_spectator_app(model_path: Optional[str] = None) -> FastAPI:
     async def serve_js():
         return FileResponse(web_dir / "viewer.js")
 
-    # Inicializa o cérebro da IA para o bot principal
-    ai_brain: Optional[FastPyTorchInference] = None
-    model_name = "Bot Especialista Nativo"
+    # Pré-carrega cérebros neurais se disponíveis
+    imitation_model_path = "checkpoints/best_imitation_model.pt"
+    ppo_model_path = "checkpoints/best_ppo_model.pt"
 
-    if model_path and os.path.isfile(model_path):
+    neural_brains: Dict[str, Optional[FastPyTorchInference]] = {
+        "imitation": None,
+        "ppo": None,
+    }
+
+    if os.path.isfile(imitation_model_path):
         try:
-            ai_brain = FastPyTorchInference(model_path, device="cpu")
-            model_name = Path(model_path).name
+            neural_brains["imitation"] = FastPyTorchInference(imitation_model_path, device="cpu")
+            print("[+] Cérebro Neural (Imitação) pronto para uso.")
         except Exception as e:
-            print(f"[!] Aviso ao carregar modelo neural ({e}). Usando Bot Nativo.")
+            print(f"[!] Aviso ao carregar modelo de imitação: {e}")
+
+    if os.path.isfile(ppo_model_path):
+        try:
+            neural_brains["ppo"] = FastPyTorchInference(ppo_model_path, device="cpu")
+            print("[+] Cérebro Neural (PPO) pronto para uso.")
+        except Exception as e:
+            print(f"[!] Aviso ao carregar modelo PPO: {e}")
 
     @app.websocket("/ws")
     async def websocket_spectator(websocket: WebSocket):
         await websocket.accept()
         print("[+] Espectador conectado via WebSocket!")
 
-        # Inicializa a arena simulada para visualização (60 FPS / ~16ms tick)
+        # Inicializa a arena simulada (raio 2500, 15 bots, 600 orbs)
         engine = SlitherEngine(
             arena_radius=SlitherConfig.ARENA_RADIUS_TRAIN,
             num_bots=SlitherConfig.NUM_BOTS_TRAIN,
             num_foods=SlitherConfig.NUM_FOOD_TRAIN,
         )
-        player_snake = engine.add_player_snake("NeuraBot_AI (IA)")
-        native_fallback_bot = SlitherNativeBot(player_snake)
+        player_snake = engine.add_player_snake("NeuraBot (IA)")
+        native_bot = SlitherNativeBot(player_snake)
 
-        # Associa cores às cobras inimigas
-        color_map = {}
+        # Cérebro ativo: "native" (Padrão: IA Original do APK), "imitation", "ppo" ou "manual"
+        current_brain = default_brain
+        manual_target_angle = player_snake.angle
+        manual_is_boosting = False
+
+        # Atribuição de skins para bots inimigos
+        skin_map = {}
         for idx, s in enumerate(engine.snakes):
-            color_map[s.id] = BOT_COLORS[idx % len(BOT_COLORS)]
+            skin_map[s.id] = SNAKE_SKINS[idx % len(SNAKE_SKINS)]
 
         fps_target = 60
         frame_interval = 1.0 / fps_target
@@ -84,23 +121,44 @@ def create_spectator_app(model_path: Optional[str] = None) -> FastAPI:
             while True:
                 frame_start = asyncio.get_event_loop().time()
 
-                # Verifica se há comandos do espectador (ex: reset)
+                # Processa comandos recebidos do cliente web
                 try:
-                    data = await asyncio.wait_for(websocket.receive_text(), timeout=0.001)
-                    msg = json.loads(data)
-                    if msg.get("cmd") == "reset":
-                        engine.reset()
-                        player_snake = engine.add_player_snake("NeuraBot_AI (IA)")
-                        native_fallback_bot = SlitherNativeBot(player_snake)
+                    while True:
+                        data = await asyncio.wait_for(websocket.receive_text(), timeout=0.002)
+                        msg = json.loads(data)
+                        cmd = msg.get("cmd")
+
+                        if cmd == "reset":
+                            engine.reset()
+                            player_snake = engine.add_player_snake("NeuraBot (IA)")
+                            native_bot = SlitherNativeBot(player_snake)
+                            manual_target_angle = player_snake.angle
+                            manual_is_boosting = False
+                            for idx, s in enumerate(engine.snakes):
+                                skin_map[s.id] = SNAKE_SKINS[idx % len(SNAKE_SKINS)]
+
+                        elif cmd == "set_brain":
+                            requested_brain = msg.get("brain", "native")
+                            if requested_brain in ["native", "imitation", "ppo", "manual"]:
+                                current_brain = requested_brain
+                                print(f"[*] Cérebro do bot alterado para: {current_brain}")
+
+                        elif cmd == "mouse_control":
+                            if "angle" in msg:
+                                manual_target_angle = float(msg["angle"])
+                            if "boost" in msg:
+                                manual_is_boosting = bool(msg["boost"])
+
                 except (asyncio.TimeoutError, json.JSONDecodeError):
                     pass
 
-                # 1. Se a cobra do jogador morreu, faz respawn suave
+                # 1. Se a cobra do jogador morreu, faz respawn com imunidade inicial
                 if not player_snake.is_alive:
-                    player_snake = engine.add_player_snake("NeuraBot_AI (IA)")
-                    native_fallback_bot = SlitherNativeBot(player_snake)
+                    player_snake = engine.add_player_snake("NeuraBot (IA)")
+                    native_bot = SlitherNativeBot(player_snake)
+                    manual_target_angle = player_snake.angle
 
-                # 2. Extrai a Percepção Sensorial (32 dimensões com LIDAR)
+                # 2. Extrai Observação Sensorial (32 floats LIDAR)
                 obs = SlitherSensors.get_observation(
                     snake=player_snake,
                     all_snakes=engine.snakes,
@@ -108,25 +166,45 @@ def create_spectator_app(model_path: Optional[str] = None) -> FastAPI:
                     arena_radius=engine.arena_radius,
                 )
 
-                # 3. Decisão da Rede Neural (ou Bot Nativo)
-                if ai_brain is not None:
-                    angle_delta, boost_active = ai_brain.predict(obs)
+                # 3. Execução da Decisão Conforme o Cérebro Selecionado
+                brain_label = "🧠 IA Nativa Especialista (Slither APK)"
+
+                if current_brain == "manual":
+                    brain_label = "🎮 Controle Manual (Mouse do Operador)"
+                    player_snake.target_angle = manual_target_angle
+                    player_snake.is_boosting = manual_is_boosting
+
+                elif current_brain == "imitation" and neural_brains["imitation"] is not None:
+                    brain_label = "⚡ Rede Neural - Imitação (Behavior Cloning)"
+                    angle_delta, boost_active = neural_brains["imitation"].predict(obs)
                     player_snake.target_angle = normalize_angle_two_pi(
                         player_snake.angle + angle_delta * math.pi
                     )
                     player_snake.is_boosting = boost_active
+
+                elif current_brain == "ppo" and neural_brains["ppo"] is not None:
+                    brain_label = "🎯 Rede Neural - Reforço (PPO Self-Play)"
+                    angle_delta, boost_active = neural_brains["ppo"].predict(obs)
+                    player_snake.target_angle = normalize_angle_two_pi(
+                        player_snake.angle + angle_delta * math.pi
+                    )
+                    player_snake.is_boosting = boost_active
+
                 else:
-                    native_fallback_bot.update_decision(
+                    # Padrão: 100% IA Especialista Original de gaim.Main.as
+                    current_brain = "native"
+                    brain_label = "🧠 IA Nativa Especialista (Slither APK)"
+                    native_bot.update_decision(
                         all_snakes=engine.snakes,
                         foods=engine.foods,
                         current_time_sec=engine.current_time_sec,
                         arena_radius=engine.arena_radius,
                     )
 
-                # 4. Avança a física do mundo
+                # 4. Avança o Passo Físico da Engine
                 engine.step(dt=0.025)
 
-                # 5. Empacota dados da cena de forma compacta
+                # 5. Prepara os dados das cobras inimigas
                 other_snakes_data = []
                 for s in engine.snakes:
                     if s.id != player_snake.id and s.is_alive:
@@ -135,32 +213,71 @@ def create_spectator_app(model_path: Optional[str] = None) -> FastAPI:
                             "name": s.name,
                             "x": round(s.x, 1),
                             "y": round(s.y, 1),
-                            "angle": round(s.angle, 2),
+                            "angle": round(s.angle, 3),
+                            "target_angle": round(s.target_angle, 3),
                             "radius": round(s.radius, 1),
-                            "color": color_map.get(s.id, "#a855f7"),
+                            "score": round(s.score, 1),
+                            "is_boosting": s.is_boosting,
+                            "skin": skin_map.get(s.id, SNAKE_SKINS[0]),
                             "segments": [
                                 {"x": round(seg.x, 1), "y": round(seg.y, 1), "radius": round(seg.radius, 1)}
                                 for seg in s.segments
                             ],
                         })
 
-                # Alimentos visíveis num raio de 1200px da câmera
+                # 6. Alimentos visíveis na vizinhança da câmera
                 cam_x, cam_y = player_snake.x, player_snake.y
                 visible_foods = []
                 for fo in engine.foods:
                     if not fo.is_eaten:
                         dx = fo.x - cam_x
                         dy = fo.y - cam_y
-                        if (dx * dx + dy * dy) < (1200 * 1200):
+                        if (dx * dx + dy * dy) < (1500 * 1500):
                             visible_foods.append({
+                                "id": fo.id,
                                 "x": round(fo.x, 1),
                                 "y": round(fo.y, 1),
                                 "radius": round(fo.radius, 1),
+                                "value": round(fo.value, 1),
                                 "is_poop": fo.is_poop,
                             })
 
+                # 7. Placar (Leaderboard) - Top 10 cobras da arena
+                sorted_snakes = sorted(
+                    [s for s in engine.snakes if s.is_alive],
+                    key=lambda s: s.score,
+                    reverse=True
+                )
+                leaderboard = [
+                    {
+                        "rank": idx + 1,
+                        "name": s.name,
+                        "score": round(s.score),
+                        "is_player": (s.id == player_snake.id),
+                    }
+                    for idx, s in enumerate(sorted_snakes[:10])
+                ]
+
+                # 8. Minimapa (posição do jogador e pontos dos inimigos)
+                minimap_dots = [
+                    {
+                        "x": round(s.x, 1),
+                        "y": round(s.y, 1),
+                        "radius": round(s.radius, 1),
+                        "is_player": (s.id == player_snake.id),
+                    }
+                    for s in sorted_snakes
+                ]
+
                 state_payload = {
-                    "model_name": model_name,
+                    "active_brain": current_brain,
+                    "brain_label": brain_label,
+                    "available_brains": {
+                        "native": True,
+                        "imitation": (neural_brains["imitation"] is not None),
+                        "ppo": (neural_brains["ppo"] is not None),
+                        "manual": True,
+                    },
                     "arena_radius": engine.arena_radius,
                     "snakes_count": len([s for s in engine.snakes if s.is_alive]),
                     "foods_count": len(engine.foods),
@@ -168,13 +285,15 @@ def create_spectator_app(model_path: Optional[str] = None) -> FastAPI:
                         "name": player_snake.name,
                         "x": round(player_snake.x, 1),
                         "y": round(player_snake.y, 1),
-                        "angle": round(player_snake.angle, 2),
+                        "angle": round(player_snake.angle, 3),
+                        "target_angle": round(player_snake.target_angle, 3),
                         "speed": round(player_snake.speed, 1),
                         "score": round(player_snake.score, 1),
                         "kills": player_snake.kills,
                         "radius": round(player_snake.radius, 1),
                         "is_boosting": player_snake.is_boosting,
                         "is_alive": player_snake.is_alive,
+                        "skin": PLAYER_SKIN,
                         "segments": [
                             {"x": round(seg.x, 1), "y": round(seg.y, 1), "radius": round(seg.radius, 1)}
                             for seg in player_snake.segments
@@ -183,11 +302,13 @@ def create_spectator_app(model_path: Optional[str] = None) -> FastAPI:
                     "lidar_readings": [round(float(v), 2) for v in obs[0:16]],
                     "other_snakes": other_snakes_data,
                     "foods": visible_foods,
+                    "leaderboard": leaderboard,
+                    "minimap_dots": minimap_dots,
                 }
 
                 await websocket.send_text(json.dumps(state_payload))
 
-                # Mantém 60 FPS estáveis
+                # Mantém 60 FPS fluídos
                 elapsed = asyncio.get_event_loop().time() - frame_start
                 sleep_time = max(0.001, frame_interval - elapsed)
                 await asyncio.sleep(sleep_time)
@@ -202,24 +323,20 @@ def create_spectator_app(model_path: Optional[str] = None) -> FastAPI:
 
 def start_spectator_server(host: str = "127.0.0.1", port: int = 8080, model_path: Optional[str] = None):
     """Inicia o servidor uvicorn para o espectador."""
-    # Se nenhum modelo for especificado, tenta carregar o melhor modelo treinado
-    if model_path is None:
-        candidates = [
-            "checkpoints/best_ppo_model.pt",
-            "checkpoints/best_imitation_model.pt",
-        ]
-        for c in candidates:
-            if os.path.isfile(c):
-                model_path = c
-                break
+    default_brain = "native"
+    if model_path:
+        if "ppo" in model_path.lower():
+            default_brain = "ppo"
+        elif "imitation" in model_path.lower():
+            default_brain = "imitation"
 
     print("=============================================================")
-    print("    Slither AI - Arena do Espectador (Live Web Viewer)")
+    print("    Slither AI - Arena Oficial do Espectador (Live 60 FPS)")
     print("=============================================================")
-    print(f"[*] Modelo em exibição: {model_path or 'Bot Especialista Nativo'}")
+    print(f"[*] Cérebro Inicial Padrão: {default_brain.upper()} (IA Nativa do Slither APK)")
     print(f"[+] Servidor ativo em: http://localhost:{port}")
     print(f"    (Abra este endereço no seu navegador para assistir)")
     print("=============================================================\n")
 
-    app = create_spectator_app(model_path=model_path)
+    app = create_spectator_app(default_brain=default_brain)
     uvicorn.run(app, host=host, port=port, log_level="warning")

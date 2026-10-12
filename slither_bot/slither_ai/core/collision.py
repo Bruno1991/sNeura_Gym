@@ -85,12 +85,12 @@ class SlitherCollision:
                             dead_ids.add(b.id)
                             break
 
-                # 2. Colisão Cabeça de A com Corpo de B
-                # Ignora os primeiros 2 nós se for o próprio corpo (evita colisão consigo mesma imediata)
-                segments_to_check = b.segments[2:] if a.id == b.id else b.segments
-                
+                # 2. Colisão Cabeça de A com Corpo de B (apenas com OUTRAS cobras)
+                if a.id == b.id:
+                    continue  # No Slither.io, uma cobra nunca morre colidindo consigo mesma
+
                 collision_found = False
-                for seg in segments_to_check:
+                for seg in b.segments:
                     comb_r = head_a_r + seg.radius - 2.0  # pequena tolerância suave
                     if distance_sq(a.x, a.y, seg.x, seg.y) <= (comb_r * comb_r):
                         deaths.append((a, b))

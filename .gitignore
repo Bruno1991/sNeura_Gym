@@ -6,3 +6,4 @@ env/
 venv/
 *.log
 node_modules/
+*.onnx

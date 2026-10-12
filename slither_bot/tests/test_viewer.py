@@ -44,6 +44,11 @@ def test_spectator_websocket_stream():
         assert "other_snakes" in data
         assert "foods" in data
         assert "arena_radius" in data
+        assert "active_brain" in data
+        assert data["active_brain"] == "native"
+        assert "leaderboard" in data
+        assert len(data["leaderboard"]) >= 1
+        assert "minimap_dots" in data
 
         # Valida sensores do LIDAR (16 raios)
         assert len(data["lidar_readings"]) == 16
@@ -58,8 +63,20 @@ def test_spectator_websocket_stream():
         assert "segments" in player
         assert len(player["segments"]) >= 1
 
+        # Testa troca de cérebro dinâmico
+        ws.send_text(json.dumps({"cmd": "set_brain", "brain": "manual"}))
+        for _ in range(5):
+            raw_brain_data = ws.receive_text()
+            brain_data = json.loads(raw_brain_data)
+            if brain_data.get("active_brain") == "manual":
+                break
+        assert brain_data["active_brain"] == "manual"
+
         # Testa envio de comando de reset
         ws.send_text(json.dumps({"cmd": "reset"}))
-        raw_reset_data = ws.receive_text()
-        reset_data = json.loads(raw_reset_data)
+        for _ in range(5):
+            raw_reset_data = ws.receive_text()
+            reset_data = json.loads(raw_reset_data)
+            if "player_snake" in reset_data:
+                break
         assert "player_snake" in reset_data

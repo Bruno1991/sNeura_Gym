@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slither AI - Arena do Espectador</title>
+    <title>Slither AI - Arena Oficial do Espectador</title>
     <link rel="stylesheet" href="viewer.css">
 </head>
 <body>
-    <!-- Canvas de Renderização da Arena -->
+    <!-- Canvas de Renderização da Arena Oficial -->
     <canvas id="gameCanvas"></canvas>
 
     <!-- HUD / Interface de Telemetria Superior Esquerda -->
     <div class="hud hud-top-left">
         <div class="hud-card">
-            <div class="badge badge-neural">IA EM OPERAÇÃO</div>
-            <h2 id="snakeName">NeuraBot_AI</h2>
+            <div class="badge badge-neural" id="brainBadge">IA NATIVA DO APK</div>
+            <h2 id="snakeName">NeuraBot (IA)</h2>
             <div class="stats-grid">
                 <div class="stat-item">
                     <span class="stat-label">Comprimento</span>
@@ -26,25 +26,41 @@
                 </div>
                 <div class="stat-item">
                     <span class="stat-label">Velocidade</span>
-                    <span class="stat-val" id="statSpeed">4.2</span>
+                    <span class="stat-val" id="statSpeed">4.3</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-label">Turbo (Boost)</span>
-                    <span class="stat-val boost-indicator" id="statBoost">OFF</span>
+                    <span class="stat-val boost-indicator" id="statBoost">CRUZEIRO</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- HUD Central Superior: Status do Modelo e Cérebro -->
+    <!-- HUD Central Superior: Seletor de Cérebro em Tempo Real -->
     <div class="hud hud-top-center">
-        <div class="hud-pill">
-            <span class="dot dot-active"></span>
-            <span id="modelLabel">Carregando Modelo Neural...</span>
+        <div class="brain-card">
+            <div class="brain-title">
+                <span class="dot dot-active"></span>
+                <span id="modelLabel">Cérebro: 🧠 IA Nativa Especialista (Slither APK)</span>
+            </div>
+            <div class="brain-buttons">
+                <button id="btnBrainNative" class="btn-brain active" data-brain="native" title="Lógica original das 150 linhas de gaim.Main.as">
+                    🧠 IA Nativa (APK)
+                </button>
+                <button id="btnBrainImitation" class="btn-brain" data-brain="imitation" title="Rede neural treinada por imitação da IA especialista">
+                    ⚡ Neural (Imitação)
+                </button>
+                <button id="btnBrainPpo" class="btn-brain" data-brain="ppo" title="Rede neural treinada por Aprendizado por Reforço PPO">
+                    🎯 Neural (PPO RL)
+                </button>
+                <button id="btnBrainManual" class="btn-brain" data-brain="manual" title="Controle você mesmo com o movimento do mouse!">
+                    🎮 Jogador (Mouse)
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- HUD Superior Direito: Conexão e FPS -->
+    <!-- HUD Superior Direito: Telemetria e FPS -->
     <div class="hud hud-top-right">
         <div class="hud-card hud-mini">
             <div class="telemetry-row">
@@ -56,13 +72,29 @@
                 <strong id="snakesCount">0</strong>
             </div>
             <div class="telemetry-row">
-                <span>Comidas no Mapa:</span>
+                <span>Comidas na Arena:</span>
                 <strong id="foodsCount">0</strong>
             </div>
             <div class="telemetry-row">
-                <span>Status WS:</span>
+                <span>Conexão:</span>
                 <span id="wsStatus" class="status-online">Conectando...</span>
             </div>
+        </div>
+
+        <!-- Placar de Líderes Oficial do Slither.io -->
+        <div class="hud-card leaderboard-card">
+            <div class="leaderboard-header">🏆 Placar de Líderes</div>
+            <ol id="leaderboardList" class="leaderboard-list">
+                <!-- Preenchido via WebSocket -->
+            </ol>
+        </div>
+    </div>
+
+    <!-- Minimapa Oficial no Canto Inferior Direito -->
+    <div class="hud hud-bottom-right">
+        <div class="minimap-container">
+            <canvas id="minimapCanvas" width="130" height="130"></canvas>
+            <span class="minimap-label">RADAR DA ARENA</span>
         </div>
     </div>
 
@@ -70,15 +102,18 @@
     <div class="hud hud-bottom">
         <div class="hud-toolbar">
             <button id="btnToggleLidar" class="btn btn-active" title="Ativar/Desativar feixes LIDAR">
-                👁️ Visão LIDAR: <span id="lidarStatus">LIGADA</span>
+                👁️ Raios LIDAR: <span id="lidarStatus">LIGADO</span>
             </button>
-            <button id="btnToggleCam" class="btn" title="Alternar entre câmera do bot ou arena">
+            <button id="btnToggleCam" class="btn btn-active" title="Alternar entre seguir a IA ou câmera livre">
                 🎥 Câmera: <span id="camStatus">SEGUIR BOT</span>
             </button>
-            <button id="btnResetGame" class="btn btn-warning" title="Reiniciar arena">
+            <button id="btnToggleTheme" class="btn" title="Alternar textura da arena descompilada do APK">
+                🎨 Fundo: <span id="themeStatus">Hex Clássico</span>
+            </button>
+            <button id="btnResetGame" class="btn btn-warning" title="Reiniciar a arena do zero">
                 🔄 Reiniciar Partida
             </button>
-            <span class="hint-text">Use o Scroll do Mouse para Zoom in/out</span>
+            <span class="hint-text">Scroll do Mouse: Zoom in/out | Arrastar: Mover Câmera</span>
         </div>
     </div>
 
