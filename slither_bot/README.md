@@ -28,16 +28,17 @@ Academia completa de treinamento por **Aprendizado por Máquina (Imitation Learn
    - Arquitetura PyTorch com LayerNorm e cabeças independentes para ângulo ($[-1.0, 1.0] \to [-\pi, \pi]$), gatilho de turbo (BCE) e estimativa de valor (Critic).
    - Exportação automática para **TorchScript standalone (`.pt`)** e **ONNX**.
 
-5. **Pipeline Híbrido de Treinamento:**
-   - **Fase 1 (Behavior Cloning):** Treina a rede neural imitando as decisões do bot nativo especialista (loss $< 0.02$).
-   - **Fase 2 (PPO Reinforcement Learning):** Refinamento no ambiente Gymnasium `SlitherEnv` com recompensas por crescimento, abates e sobrevivência.
+5. **Pipeline de Destilação Ativa DAgger (Dataset Aggregation):**
+   - Transfere 100% da inteligência da IA nativa do APK diretamente para os pesos da Rede Neural.
+   - Elimina o problema de desvio de distribuição (*covariate shift*): a rede neural pilota, mas o bot especialista intervém a cada tick e rotula a ação ótima de correção.
+   - **Semeadura Universal (Universal Warm Start):** Os pesos destilados são gravados em `best_imitation_model.pt`, `best_imitation_model_traced.pt` e `best_ppo_model.pt`, garantindo que o agente comece já jogando em alto nível em qualquer modo.
 
-7. **Arena do Espectador em Tempo Real (Zero Impacto no Treinamento):**
-   - **Arquitetura 100% Desacoplada:** O treinamento por reforço roda em modo Headless a velocidade pura de CPU/GPU (>135 a 10.000+ FPS), sem travas de interface ou renderização.
-   - **Live Web Spectator independente:** Servidor FastAPI + WebSocket que carrega qualquer checkpoint treinado (`.pt`) e renderiza uma partida a 60 FPS no navegador (`http://localhost:8080`) com:
-     - Visão dos 16 raios LIDAR em tempo real (laser verde/vermelho).
-     - HUD com abates, comprimento, velocidade e acionamento de turbo.
-     - Câmera suave seguindo o bot e controle de zoom pelo scroll do mouse.
+6. **Refinamento por Aprendizado por Reforço (PPO Self-Play):**
+   - Inicia com os pesos do DAgger já competentes e otimiza a política no ambiente Gymnasium `SlitherEnv`.
+
+7. **Operação 100% Headless no Terminal (Máximo Rendimento de Hardware):**
+   - Todo o ecossistema roda diretamente pelo terminal aproveitando o máximo da GPU CUDA e dos núcleos da CPU sem travas ou overhead de renderização visual no navegador.
+   - Painel de telemetria e progresso em tempo real no próprio terminal com cálculo de FPS, abates e causas de morte.
 
 ---
 
@@ -60,13 +61,11 @@ c:\dev\s_Neura_Gym\slither_bot\
 │   │   └── slither_env.py             # Ambiente padrão Gymnasium (reset/step)
 │   ├── models\
 │   │   ├── policy_net.py              # Rede Neural Actor-Critic PyTorch
-│   │   └── inference.py               # Exportação TorchScript/ONNX e inferência rápida
-│   ├── viewer\                        # Live Web Spectator (Desacoplado)
-│   │   ├── server.py                  # Servidor FastAPI e streaming WebSocket
-│   │   └── web\                       # Frontend HTML5 Canvas, CSS e JS 60 FPS
+│   │   └── inference.py               # Exportação TorchScript standalone e inferência
 │   ├── training\
 │   │   ├── dataset.py                 # Coletor de demonstrações do Expert Bot
-│   │   ├── imitation_trainer.py       # Treinador por Imitação (Behavior Cloning)
+│   │   ├── dagger_trainer.py          # Destilador Ativo DAgger (GPU Max Speed)
+│   │   ├── imitation_trainer.py       # Treinador por Imitação supervisionada
 │   │   └── ppo_trainer.py             # Treinador por Reforço (PPO)
 │   ├── online\
 │   │   ├── crypto.py                  # Handshake criptográfico challenge wtfk + CRC32
@@ -75,21 +74,21 @@ c:\dev\s_Neura_Gym\slither_bot\
 │   └── utils\
 │       └── math_helpers.py            # Geometria polar e conversões de bytes
 ├── checkpoints\                       # Modelos neurais treinados salvos
-│   ├── best_imitation_model.pt        # Modelo treinado por imitação do bot nativo
-│   ├── best_imitation_model_traced.pt # Modelo TorchScript standalone compilado
-│   └── best_ppo_model.pt              # Modelo refinado por PPO
-├── tests\                             # Suíte com 16 testes automatizados (pytest)
+│   ├── best_imitation_model.pt        # Pesos destilados via DAgger da IA do APK
+│   ├── best_imitation_model_traced.pt # Modelo compilado standalone TorchScript
+│   └── best_ppo_model.pt              # Modelo pré-semeado / refinado por PPO
+├── tests\                             # Suíte com 15 testes automatizados (pytest)
 ├── scripts\
-│   ├── run_benchmark.py               # Benchmark de velocidade da física
-│   ├── run_spectator.py               # Inicia o servidor da arena do espectador
-│   ├── run_training_imitation.py      # Executa o treino por imitação
-│   ├── run_training_ppo.py            # Executa o treino PPO
-│   └── run_online_bot.py              # Inicia o bot em servidor online
-├── assistir-bot.bat                   # Atalho: Inicia o Live Spectator Web (localhost:8080)
-├── benchmark.bat                      # Atalho: Executa o benchmark de performance
-├── treinar-imitacao.bat               # Atalho: Treina por imitação
-├── treinar-rl.bat                     # Atalho: Treina por reforço (PPO)
-├── jogar-bot.bat                      # Atalho: Conecta o bot em servidor
+│   ├── run_training_dagger.py         # Executa a destilação DAgger na GPU
+│   ├── run_training_ppo.py            # Executa o auto-treinamento PPO
+│   ├── run_eval_terminal.py           # Avalia partidas no terminal em tempo real
+│   ├── run_benchmark.py               # Mede a taxa de FPS físico da engine
+│   └── run_online_bot.py              # Inicia o bot conectado a servidores online
+├── treinar-dagger.bat                 # Atalho: Destila a IA do APK nos pesos neurais (GPU)
+├── treinar-rl.bat                     # Atalho: Treina por reforço (PPO) com Warm Start
+├── avaliar-bot.bat                    # Atalho: Executa partidas de teste no terminal
+├── benchmark.bat                      # Atalho: Mede o throughput físico em FPS
+├── jogar-bot.bat                      # Atalho: Conecta o bot em servidor online
 ├── requirements.txt
 └── README.md
 ```
@@ -99,41 +98,40 @@ c:\dev\s_Neura_Gym\slither_bot\
 ## 3. Como Utilizar
 
 ### A. Atalhos com Duplo-Clique (Windows)
-- **`assistir-bot.bat`**: Inicia o servidor espectador em `http://localhost:8080`. Basta abrir o link no navegador para assistir a IA jogando a 60 FPS com os raios LIDAR ativos!
-- **`treinar-imitacao.bat`**: Treina a rede neural por imitação em segundos (velocidade máxima headless).
-- **`treinar-rl.bat`**: Roda o auto-treinamento por Aprendizado por Reforço (PPO) em velocidade máxima headless.
-- **`benchmark.bat`**: Mede a performance de simulação (FPS) da física local.
-- **`jogar-bot.bat`**: Conecta o bot diretamente em um servidor online oficial ou local.
+- **`treinar-dagger.bat`**: Transfere toda a inteligência da IA nativa do APK para a rede neural com aceleração de GPU (CUDA) e barra de progresso no terminal.
+- **`avaliar-bot.bat`**: Roda partidas completas no terminal em milhares de FPS e exibe o relatório de abates, comprimento e sobrevivência.
+- **`treinar-rl.bat`**: Refina a rede neural via PPO partindo dos pesos já inteligentes do DAgger.
+- **`benchmark.bat`**: Mede a taxa de simulação física (FPS) da engine local.
+- **`jogar-bot.bat`**: Conecta a IA diretamente a um servidor online do Slither.io.
 
 ### B. Linha de Comando (Terminal)
 
-1. **Assistir ao Bot Jogando (Spectator):**
+1. **Destilar Inteligência do APK via DAgger (GPU):**
    ```powershell
-   python scripts/run_spectator.py --port 8080
-   ```
-   *Abra `http://localhost:8080` no navegador para assistir em tempo real.*
-
-2. **Rodar Testes Automatizados:**
-   ```powershell
-   pytest tests/
+   python scripts/run_training_dagger.py --iterations 5 --steps 15000
    ```
 
-3. **Benchmark de FPS:**
+2. **Avaliar Desempenho no Terminal (Sem Interface Gráfica):**
    ```powershell
-   python scripts/run_benchmark.py
+   python scripts/run_eval_terminal.py --episodes 20
    ```
 
-4. **Treinar Rede Neural por Imitação:**
-   ```powershell
-   python scripts/run_training_imitation.py
-   ```
-
-5. **Treinar por Aprendizado por Reforço (PPO):**
+3. **Treinar por Aprendizado por Reforço (PPO com Warm Start):**
    ```powershell
    python scripts/run_training_ppo.py
    ```
 
-6. **Jogar no Servidor Online com a IA:**
+4. **Executar Benchmark de Velocidade da Física:**
+   ```powershell
+   python scripts/run_benchmark.py
+   ```
+
+5. **Rodar Testes Automatizados:**
+   ```powershell
+   pytest tests/
+   ```
+
+6. **Jogar no Servidor Online Oficial com a IA:**
    ```powershell
    python scripts/run_online_bot.py --host 127.0.0.1 --port 444 --nick NeuraBot_AI
    ```
