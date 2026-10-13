@@ -1,16 +1,19 @@
-"""Motor de Treinamento Contínuo 24/7 para Maestria Neural no Slither.io (Versão Calibrada).
+"""Motor de Treinamento Contínuo 24/7 com Ambientes Vetorizados e Aceleração GPU (RTX 3060).
 
-Inclui:
-1. Curriculum Multi-Fase (Infância Forrageadora -> Predador Adulto).
-2. Inferência ultrarrápida na CPU (Fast Policy) + Treinamento PPO paralelo na GPU CUDA.
-3. Assistência e Destilação Residual do Especialista do APK (SlitherNativeBot Teacher Guidance).
-4. Estabilização e Normalização do Critic Loss (Clipped Value Loss).
-5. Persistência de Recordes Históricos em Disco (mastery_records.json).
+Recursos de Alta Performance:
+1. Vetorização Multi-Processo (8 Workers paralelos aproveitando os 24 núcleos de CPU).
+2. Batched GPU Inference na NVIDIA GeForce RTX 3060 (alimentação contínua de tensores na VRAM).
+3. Curriculum Multi-Fase (Infância Forrageadora -> Predador Adulto).
+4. Assistência Residual e Destilação do Especialista do APK (SlitherNativeBot Teacher Guidance).
+5. Clipped Value Loss e Retornos Estáveis para o Critic.
+6. Persistência de Recordes em Disco (mastery_records.json).
+7. Finalização graciosa de processos e salvamento atômico de checkpoints via Ctrl+C.
 """
 
 import copy
 import json
 import math
+import multiprocessing as mp
 import os
 import signal
 import sys
@@ -31,8 +34,108 @@ from ..models.policy_net import SlitherPolicyNet
 from .dagger_trainer import DAggerTrainer
 
 
+def _vector_worker_process(pipe, seed: int, arena_radius: float, num_bots: int, num_foods: int):
+    """Processo worker independente executando simulação física pura em um núcleo de CPU."""
+    np.random.seed(seed)
+    engine = SlitherEngine(arena_radius=arena_radius, num_bots=num_bots, num_foods=num_foods)
+    player = engine.add_player_snake(f"VecSnake_{seed}")
+    teacher = SlitherNativeBot(player)
+
+    prev_score = player.score
+    prev_kills = player.kills
+
+    obs = SlitherSensors.get_observation(player, engine.snakes, engine.foods, engine.arena_radius)
+    pipe.send(obs)
+
+    step_idx = 0
+    dt = 0.033
+
+    while True:
+        try:
+            cmd, data = pipe.recv()
+        except EOFError:
+            break
+
+        if cmd == "step":
+            sampled_ang, sampled_boost = data
+            step_idx += 1
+
+            # Detecção de Perigo Iminente e Consulta ao Especialista Nativo do APK
+            min_lidar = float(np.min(obs[:16]))
+            is_danger = 1.0 if min_lidar < 0.28 else 0.0
+            teacher_act = np.zeros(2, dtype=np.float32)
+
+            if is_danger > 0.5:
+                orig_target = player.target_angle
+                orig_boost = player.is_boosting
+                teacher.update_decision(engine.snakes, engine.foods, step_idx * dt, engine.arena_radius)
+
+                d_ang = (player.target_angle - player.angle + math.pi) % (2.0 * math.pi) - math.pi
+                t_norm_ang = float(np.clip(d_ang / math.pi, -1.0, 1.0))
+                teacher_act = np.array([t_norm_ang, 1.0 if player.is_boosting else 0.0], dtype=np.float32)
+
+                # Teacher Rescue: em perigo crítico extremo (< 0.18), intervém em 25% dos casos
+                if min_lidar < 0.18 and np.random.random() < 0.25:
+                    sampled_ang = t_norm_ang
+                    sampled_boost = teacher_act[1]
+                else:
+                    player.target_angle = orig_target
+                    player.is_boosting = orig_boost
+
+            # Aplica ação na física da cobra
+            player.target_angle = player.angle + sampled_ang * math.pi
+            player.is_boosting = bool(sampled_boost > 0.5)
+            engine.step(dt)
+
+            # Recompensa com Curriculum Multi-Fase
+            reward = 0.05
+            score_diff = player.score - prev_score
+            kills_diff = player.kills - prev_kills
+
+            if player.score < 45.0:
+                # FASE 1: JUVENIL / FORRAGEAMENTO
+                if score_diff > 0:
+                    reward += score_diff * 3.5
+                elif score_diff < 0 and player.is_boosting:
+                    reward += score_diff * 0.8
+
+                done = not player.is_alive
+                if done:
+                    dist_c = (player.x * player.x + player.y * player.y) ** 0.5
+                    reward -= 15.0 if dist_c >= (engine.arena_radius - player.radius - 15.0) else 8.0
+            else:
+                # FASE 2: PREDADOR ADULTO
+                if score_diff > 0:
+                    reward += score_diff * 1.5
+                elif score_diff < 0 and player.is_boosting:
+                    reward += score_diff * 0.15
+
+                if kills_diff > 0:
+                    reward += kills_diff * 25.0
+
+                done = not player.is_alive
+                if done:
+                    dist_c = (player.x * player.x + player.y * player.y) ** 0.5
+                    reward -= 20.0 if dist_c >= (engine.arena_radius - player.radius - 15.0) else 12.0
+
+            prev_score = player.score
+            prev_kills = player.kills
+
+            if done:
+                player = engine.add_player_snake(f"VecSnake_{seed}")
+                teacher = SlitherNativeBot(player)
+                prev_score = player.score
+                prev_kills = player.kills
+
+            obs = SlitherSensors.get_observation(player, engine.snakes, engine.foods, engine.arena_radius)
+            pipe.send((obs, reward, done, is_danger, teacher_act))
+
+        elif cmd == "close":
+            break
+
+
 class MasteryCurriculumEngine:
-    """Motor de Treinamento Autônomo 24/7 com Self-Play e Avaliação de Recordes."""
+    """Motor de Treinamento Autônomo 24/7 com Vetorização Multi-Processo e Aceleração GPU."""
 
     def __init__(
         self,
@@ -41,10 +144,14 @@ class MasteryCurriculumEngine:
         save_dir: str = "checkpoints",
         device: Optional[str] = None,
         learning_rate: float = 1e-4,
+        num_workers: int = 8,
+        rollout_steps: int = 4096,
     ):
         self.target_mastery = target_mastery
         self.eval_interval = eval_interval
         self.save_dir = save_dir
+        self.num_workers = max(1, num_workers)
+        self.rollout_steps = rollout_steps
         os.makedirs(self.save_dir, exist_ok=True)
 
         if device is None:
@@ -52,39 +159,40 @@ class MasteryCurriculumEngine:
         else:
             self.device = torch.device(device)
 
-        # Modelo principal de treinamento na GPU
+        # Modelo Neural na GPU
         self.model = SlitherPolicyNet().to(self.device)
         self.ref_model = copy.deepcopy(self.model).to(self.device)
         self.ref_model.eval()
-
-        # Réplica para inferência ultrarrápida na CPU durante os rollouts (elimina latência PCIe)
-        self.cpu_rollout_model = copy.deepcopy(self.model).to("cpu")
-        self.cpu_rollout_model.eval()
 
         self.optimizer = torch.optim.AdamW(
             self.model.parameters(), lr=learning_rate, weight_decay=1e-4, eps=1e-5
         )
 
-        # Flag para finalização graciosa via Ctrl+C
+        # Controle de Interrupção via Ctrl+C
         self.stop_requested = False
         signal.signal(signal.SIGINT, self._handle_interrupt)
 
         # Recordes Históricos de Desempenho
-        self.all_time_best_score = 36.1
+        self.all_time_best_score = 47.76
         self.all_time_best_kills = 0.30
-        self.all_time_best_mastery = 35.0
+        self.all_time_best_mastery = 45.88
 
         # Estatísticas Globais
         self.start_timestamp = time.time()
-        self.total_ticks_simulated = 2320000
-        self.current_cycle = 1135
+        self.total_ticks_simulated = 3640960
+        self.current_cycle = 1780
 
         # Pool de Oponentes Históricos para Self-Play
         self.opponent_checkpoints: List[SlitherPolicyNet] = []
 
+        # Gerenciamento de Workers de Processo
+        self.pipes: List[mp.connection.Connection] = []
+        self.processes: List[mp.Process] = []
+        self.workers_initialized = False
+
     def _handle_interrupt(self, sig, frame):
         """Interrompe o treinamento de forma segura ao pressionar Ctrl+C."""
-        print("\n[!] Sinal de interrupção (Ctrl+C) recebido. Salvando pesos e recordes antes de encerrar...")
+        print("\n[!] Sinal de interrupção (Ctrl+C) recebido. Encerrando workers e salvando pesos...")
         self.stop_requested = True
 
     def _get_records_filepath(self) -> str:
@@ -126,6 +234,53 @@ class MasteryCurriculumEngine:
         except Exception as e:
             print(f"[!] Erro ao salvar records JSON ({e}).")
 
+    def _start_worker_processes(self):
+        """Inicializa a equipe de processos workers paralelos."""
+        if self.workers_initialized:
+            return
+
+        self.pipes.clear()
+        self.processes.clear()
+
+        for i in range(self.num_workers):
+            parent_conn, child_conn = mp.Pipe()
+            p = mp.Process(
+                target=_vector_worker_process,
+                args=(
+                    child_conn,
+                    i * 1000 + int(time.time()) % 1000,
+                    SlitherConfig.ARENA_RADIUS_TRAIN,
+                    SlitherConfig.NUM_BOTS_TRAIN,
+                    SlitherConfig.NUM_FOOD_TRAIN,
+                ),
+            )
+            p.daemon = True
+            p.start()
+            self.pipes.append(parent_conn)
+            self.processes.append(p)
+
+        self.workers_initialized = True
+
+    def _close_worker_processes(self):
+        """Finaliza e fecha todos os processos workers com segurança."""
+        if not self.workers_initialized:
+            return
+
+        for pipe in self.pipes:
+            try:
+                pipe.send(("close", None))
+            except Exception:
+                pass
+
+        for p in self.processes:
+            p.join(timeout=1.0)
+            if p.is_alive():
+                p.terminate()
+
+        self.pipes.clear()
+        self.processes.clear()
+        self.workers_initialized = False
+
     def initialize_bootstrap(self):
         """Carrega pesos pré-treinados ou inicializa com DAgger express se necessário."""
         self._load_persistent_records()
@@ -141,7 +296,6 @@ class MasteryCurriculumEngine:
                     self.model.load_model(p, map_location=self.device)
                     self.ref_model = copy.deepcopy(self.model).to(self.device)
                     self.ref_model.eval()
-                    self._sync_cpu_rollout_model()
                     print(f"[*] Pesos iniciais carregados com sucesso a partir de: {p}")
                     loaded = True
                     break
@@ -154,111 +308,102 @@ class MasteryCurriculumEngine:
             dagger.train_dagger(total_iterations=3, steps_per_iteration=10000, save_dir=self.save_dir)
             self.ref_model = copy.deepcopy(self.model).to(self.device)
             self.ref_model.eval()
-            self._sync_cpu_rollout_model()
-
-    def _sync_cpu_rollout_model(self):
-        """Sincroniza os pesos do modelo de treino da GPU para a réplica de CPU."""
-        with torch.no_grad():
-            cpu_state = {k: v.cpu() for k, v in self.model.state_dict().items()}
-            self.cpu_rollout_model.load_state_dict(cpu_state)
-            self.cpu_rollout_model.eval()
 
     def run_continuous_training(self, max_hours: Optional[float] = None):
-        """Loop principal de treinamento contínuo 24/7 até atingir a maestria."""
+        """Loop principal de treinamento contínuo 24/7 com aceleração multi-core e GPU."""
         self.initialize_bootstrap()
+        self._start_worker_processes()
 
         device_name = torch.cuda.get_device_name(0) if self.device.type == "cuda" else "CPU Multicore"
 
         print("\n" + "=" * 65)
-        print("   SLITHER AI - MOTOR DE TREINAMENTO 24/7 PARA MAESTRIA")
+        print("   SLITHER AI - MOTOR DE TREINAMENTO VETORIZADO 24/7 (GPU ACCEL)")
         print("=" * 65)
         print(f"[*] Dispositivo de Treino: {self.device.type.upper()} ({device_name})")
-        print(f"[*] Réplica de Simulação:  CPU Fast-Policy (Zero Latência PCIe)")
+        print(f"[*] Workers Paralelos:     {self.num_workers} processos na CPU (Zero GIL)")
+        print(f"[*] Lote por Ciclo:        {self.rollout_steps} passos batched na GPU")
         print(f"[*] Meta de Maestria:      {self.target_mastery:.1f}%")
         print(f"[*] Avaliação Periódica:   A cada {self.eval_interval} ciclos")
         print(f"[*] Pressione Ctrl+C a qualquer momento para sair salvando tudo.")
         print("=" * 65 + "\n")
 
-        while not self.stop_requested:
-            self.current_cycle += 1
+        try:
+            while not self.stop_requested:
+                self.current_cycle += 1
 
-            # Checa limite de tempo opcional
-            if max_hours is not None:
-                elapsed_hours = (time.time() - self.start_timestamp) / 3600.0
-                if elapsed_hours >= max_hours:
-                    print(f"[+] Limite de tempo de {max_hours}h alcançado. Finalizando.")
-                    break
+                # Checa limite de tempo opcional
+                if max_hours is not None:
+                    elapsed_hours = (time.time() - self.start_timestamp) / 3600.0
+                    if elapsed_hours >= max_hours:
+                        print(f"[+] Limite de tempo de {max_hours}h alcançado. Finalizando.")
+                        break
 
-            # 1. Sincroniza réplica CPU antes da simulação
-            self._sync_cpu_rollout_model()
+                # 1. Coleta de Trajetórias Vetorizadas com Batched GPU Inference
+                (
+                    obs_b,
+                    act_b,
+                    old_log_p_b,
+                    adv_b,
+                    ret_b,
+                    danger_b,
+                    teacher_act_b,
+                    cycle_ticks,
+                    cycle_fps,
+                ) = self._collect_vectorized_rollout(steps=self.rollout_steps)
+                self.total_ticks_simulated += cycle_ticks
 
-            # 2. Coleta de Trajetórias na Arena com Curriculum e Assistência do Especialista
-            (
-                obs_b,
-                act_b,
-                old_log_p_b,
-                adv_b,
-                ret_b,
-                danger_b,
-                teacher_act_b,
-                cycle_ticks,
-                cycle_fps,
-            ) = self._collect_curriculum_rollout(steps=2048)
-            self.total_ticks_simulated += cycle_ticks
+                # 2. Otimização PPO Massiva na GPU CUDA (RTX 3060)
+                policy_loss, value_loss = self._optimize_ppo(
+                    obs_b,
+                    act_b,
+                    old_log_p_b,
+                    adv_b,
+                    ret_b,
+                    danger_b,
+                    teacher_act_b,
+                    epochs=4,
+                    batch_size=256,
+                )
 
-            # 3. Otimização PPO com Clipped Value Loss e Destilação Residual do Professor
-            policy_loss, value_loss = self._optimize_ppo(
-                obs_b,
-                act_b,
-                old_log_p_b,
-                adv_b,
-                ret_b,
-                danger_b,
-                teacher_act_b,
-                epochs=4,
-                batch_size=128,
-            )
+                # 3. Bateria de Avaliação e Benchmark de Maestria
+                if self.current_cycle % self.eval_interval == 0:
+                    mastery_data = self._evaluate_mastery_benchmark(episodes=10)
+                    self._display_dashboard(mastery_data, cycle_fps, policy_loss, value_loss)
 
-            # 4. Bateria de Avaliação e Benchmark de Maestria
-            if self.current_cycle % self.eval_interval == 0:
-                self._sync_cpu_rollout_model()
-                mastery_data = self._evaluate_mastery_benchmark(episodes=10)
-                self._display_dashboard(mastery_data, cycle_fps, policy_loss, value_loss)
+                    # Se bateu o recorde de maestria, atualiza o modelo de ouro
+                    if mastery_data["mastery_index"] > self.all_time_best_mastery:
+                        self.all_time_best_mastery = mastery_data["mastery_index"]
+                        self.all_time_best_score = max(self.all_time_best_score, mastery_data["max_score"])
+                        self.all_time_best_kills = max(self.all_time_best_kills, mastery_data["avg_kills"])
+                        self._save_master_weights()
 
-                # Se bateu o recorde de maestria, atualiza o modelo de ouro
-                if mastery_data["mastery_index"] > self.all_time_best_mastery:
-                    self.all_time_best_mastery = mastery_data["mastery_index"]
-                    self.all_time_best_score = max(self.all_time_best_score, mastery_data["max_score"])
-                    self.all_time_best_kills = max(self.all_time_best_kills, mastery_data["avg_kills"])
-                    self._save_master_weights()
+                        # Adiciona ao pool de oponentes para Self-Play contínuo
+                        if len(self.opponent_checkpoints) < 5:
+                            self.opponent_checkpoints.append(copy.deepcopy(self.model).to("cpu"))
+                        else:
+                            self.opponent_checkpoints[self.current_cycle % 5] = copy.deepcopy(self.model).to("cpu")
 
-                    # Adiciona ao pool de oponentes para Self-Play contínuo
-                    if len(self.opponent_checkpoints) < 5:
-                        self.opponent_checkpoints.append(copy.deepcopy(self.cpu_rollout_model))
-                    else:
-                        self.opponent_checkpoints[self.current_cycle % 5] = copy.deepcopy(self.cpu_rollout_model)
+                    # Salva métricas de progresso no JSON
+                    self._save_persistent_records()
 
-                # Salva métricas de progresso no JSON
-                self._save_persistent_records()
+                    # Checagem de Conclusão da Maestria
+                    if mastery_data["mastery_index"] >= self.target_mastery:
+                        print("\n" + "🏆" * 30)
+                        print(f"   PARABÉNS! A META DE MAESTRIA ({self.target_mastery:.1f}%) FOI ATINGIDA!")
+                        print(f"   A REDE NEURAL ATINGIU NÍVEL PRO-PLAYER MESTRE ({mastery_data['mastery_index']:.1f}%)")
+                        print("🏆" * 30 + "\n")
+                        self._save_master_weights()
+                        break
 
-                # Checagem de Conclusão da Maestria
-                if mastery_data["mastery_index"] >= self.target_mastery:
-                    print("\n" + "🏆" * 30)
-                    print(f"   PARABÉNS! A META DE MAESTRIA ({self.target_mastery:.1f}%) FOI ATINGIDA!")
-                    print(f"   A REDE NEURAL ATINGIU NÍVEL PRO-PLAYER MESTRE ({mastery_data['mastery_index']:.1f}%)")
-                    print("🏆" * 30 + "\n")
-                    self._save_master_weights()
-                    break
+        finally:
+            self._close_worker_processes()
+            self._save_master_weights()
+            self._save_persistent_records()
+            print("\n[+] Motor 24/7 finalizado com sucesso. Todos os pesos e recordes seguros em disco.")
 
-        # Salvamento final ao sair
-        self._save_master_weights()
-        self._save_persistent_records()
-        print("\n[+] Motor 24/7 finalizado com sucesso. Todos os pesos e recordes seguros em disco.")
-
-    def _collect_curriculum_rollout(
+    def _collect_vectorized_rollout(
         self,
-        steps: int = 2048,
-        dt: float = 0.033,
+        steps: int = 4096,
     ) -> Tuple[
         torch.Tensor,
         torch.Tensor,
@@ -270,171 +415,108 @@ class MasteryCurriculumEngine:
         int,
         float,
     ]:
-        """Coleta trajetórias com Curriculum Multi-Fase, Fast CPU Policy e Teacher Guidance."""
-        engine = SlitherEngine(
-            arena_radius=SlitherConfig.ARENA_RADIUS_TRAIN,
-            num_bots=SlitherConfig.NUM_BOTS_TRAIN,
-            num_foods=SlitherConfig.NUM_FOOD_TRAIN,
-        )
-        player = engine.add_player_snake("MasterAgent")
-        teacher = SlitherNativeBot(player)
+        """Coleta trajetórias paralelamente nos workers com Inferência em Lote na GPU."""
+        if not self.workers_initialized:
+            self._start_worker_processes()
 
-        obs_buf, acts_buf, log_probs_buf, rewards_buf, values_buf, dones_buf = [], [], [], [], [], []
-        danger_buf, teacher_act_buf = [], []
+        num_w = self.num_workers
+        iters = max(1, steps // num_w)
+        actual_total_steps = iters * num_w
 
-        obs = SlitherSensors.get_observation(
-            snake=player,
-            all_snakes=engine.snakes,
-            foods=engine.foods,
-            arena_radius=engine.arena_radius,
-        )
+        # Recebe primeira observação de cada worker
+        curr_obs = np.array([pipe.recv() for pipe in self.pipes], dtype=np.float32)
 
-        prev_score = player.score
-        prev_kills = player.kills
+        # Buffers estruturados por worker: worker_idx -> list of steps
+        w_obs = [[] for _ in range(num_w)]
+        w_acts = [[] for _ in range(num_w)]
+        w_logp = [[] for _ in range(num_w)]
+        w_rews = [[] for _ in range(num_w)]
+        w_vals = [[] for _ in range(num_w)]
+        w_dones = [[] for _ in range(num_w)]
+        w_danger = [[] for _ in range(num_w)]
+        w_teacher = [[] for _ in range(num_w)]
+
         t_start = time.time()
 
-        for step_idx in range(steps):
-            # Inferência ultrarrápida na CPU (zero transferências PCIe bloqueantes)
-            tensor_obs = torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0)
+        for it in range(iters):
+            # 1. Inferência em lote na VRAM da GPU (RTX 3060)
+            tensor_obs = torch.as_tensor(curr_obs, dtype=torch.float32, device=self.device)
             with torch.inference_mode():
-                pred_angle, pred_boost_logits, val = self.cpu_rollout_model(tensor_obs)
-                mean_ang = float(pred_angle[0, 0].item())
-                boost_prob = float(torch.sigmoid(pred_boost_logits[0, 0]).item())
-                val_num = float(val[0, 0].item())
+                pred_angles, pred_boost_logits, vals = self.model(tensor_obs)
+                mean_angs = pred_angles.squeeze(-1).cpu().numpy()
+                boost_probs = torch.sigmoid(pred_boost_logits.squeeze(-1)).cpu().numpy()
+                val_nums = vals.squeeze(-1).cpu().numpy()
 
-            # Exploração estocástica
-            sampled_ang = float(np.clip(np.random.normal(mean_ang, 0.08), -1.0, 1.0))
-            sampled_boost = 1.0 if np.random.random() < boost_prob else 0.0
-            act_np = np.array([sampled_ang, sampled_boost], dtype=np.float32)
+            # 2. Amostragem de ações
+            sampled_angs = np.clip(np.random.normal(mean_angs, 0.08), -1.0, 1.0)
+            sampled_boosts = (np.random.random(num_w) < boost_probs).astype(np.float32)
 
-            # Log-probabilidade da ação
-            old_log_p = self._calc_log_prob(mean_ang, boost_prob, act_np)
+            # 3. Despacha ações para todos os workers em paralelo
+            for i, pipe in enumerate(self.pipes):
+                pipe.send(("step", (float(sampled_angs[i]), float(sampled_boosts[i]))))
 
-            # --- ASSISTÊNCIA DO ESPECIALISTA DO APK EM SITUAÇÕES DE PERIGO ---
-            min_lidar = float(np.min(obs[:16]))
-            is_danger = 1.0 if min_lidar < 0.28 else 0.0
-            teacher_act = np.zeros(2, dtype=np.float32)
+            # 4. Coleta resultados de todos os workers em paralelo
+            next_obs = []
+            for i, pipe in enumerate(self.pipes):
+                n_obs, r, done, is_danger, teacher_act = pipe.recv()
+                next_obs.append(n_obs)
 
-            if is_danger > 0.5:
-                orig_target = player.target_angle
-                orig_boost = player.is_boosting
+                # Calcula log prob da ação
+                lp = self._calc_log_prob(mean_angs[i], boost_probs[i], np.array([sampled_angs[i], sampled_boosts[i]]))
 
-                teacher.update_decision(
-                    all_snakes=engine.snakes,
-                    foods=engine.foods,
-                    current_time_sec=step_idx * dt,
-                    arena_radius=engine.arena_radius,
-                )
-                t_target = player.target_angle
-                t_boost = player.is_boosting
+                w_obs[i].append(curr_obs[i])
+                w_acts[i].append([sampled_angs[i], sampled_boosts[i]])
+                w_logp[i].append(lp)
+                w_rews[i].append(r)
+                w_vals[i].append(val_nums[i])
+                w_dones[i].append(done)
+                w_danger[i].append(is_danger)
+                w_teacher[i].append(teacher_act)
 
-                d_ang = (t_target - player.angle + math.pi) % (2.0 * math.pi) - math.pi
-                t_norm_ang = float(np.clip(d_ang / math.pi, -1.0, 1.0))
-                teacher_act = np.array([t_norm_ang, 1.0 if t_boost else 0.0], dtype=np.float32)
-
-                # Teacher Rescue: em perigo crítico extremo (< 0.18), intervém em 25% dos casos
-                if min_lidar < 0.18 and np.random.random() < 0.25:
-                    sampled_ang = t_norm_ang
-                    sampled_boost = teacher_act[1]
-                else:
-                    player.target_angle = orig_target
-                    player.is_boosting = orig_boost
-
-            # Aplica ação na física da cobra
-            player.target_angle = player.angle + sampled_ang * math.pi
-            player.is_boosting = bool(sampled_boost > 0.5)
-
-            # Passo na física da engine
-            engine.step(dt)
-
-            # --- CURRICULUM MULTI-FASE DE RECOMPENSAS CALIBRADAS ---
-            reward = 0.05  # Sobrevivência básica
-            score_diff = player.score - prev_score
-            kills_diff = player.kills - prev_kills
-
-            if player.score < 45.0:
-                # FASE 1: JUVENIL / FORRAGEAMENTO (FOCO: COMER E SOBREVIVER)
-                if score_diff > 0:
-                    reward += score_diff * 3.5  # Alto incentivo para comer orbs
-                elif score_diff < 0 and player.is_boosting:
-                    reward += score_diff * 0.8  # Severa penalidade por gastar turbo à toa
-
-                done = not player.is_alive
-                if done:
-                    dist_center = (player.x * player.x + player.y * player.y) ** 0.5
-                    if dist_center >= (engine.arena_radius - player.radius - 15.0):
-                        reward -= 15.0
-                    else:
-                        reward -= 8.0
-            else:
-                # FASE 2: PREDADOR ADULTO (FOCO: CAÇA, CUT-OFFS E COILING)
-                if score_diff > 0:
-                    reward += score_diff * 1.5
-                elif score_diff < 0 and player.is_boosting:
-                    reward += score_diff * 0.15
-
-                if kills_diff > 0:
-                    reward += kills_diff * 25.0  # Recompensa predatória por abate
-
-                done = not player.is_alive
-                if done:
-                    dist_center = (player.x * player.x + player.y * player.y) ** 0.5
-                    if dist_center >= (engine.arena_radius - player.radius - 15.0):
-                        reward -= 20.0
-                    else:
-                        reward -= 12.0
-
-            prev_score = player.score
-            prev_kills = player.kills
-
-            obs_buf.append(obs)
-            acts_buf.append(act_np)
-            log_probs_buf.append(old_log_p)
-            rewards_buf.append(reward)
-            values_buf.append(val_num)
-            dones_buf.append(done)
-            danger_buf.append(is_danger)
-            teacher_act_buf.append(teacher_act)
-
-            if done:
-                player = engine.add_player_snake("MasterAgent")
-                teacher = SlitherNativeBot(player)
-                prev_score = player.score
-                prev_kills = player.kills
-
-            obs = SlitherSensors.get_observation(
-                snake=player,
-                all_snakes=engine.snakes,
-                foods=engine.foods,
-                arena_radius=engine.arena_radius,
-            )
+            curr_obs = np.array(next_obs, dtype=np.float32)
 
         elapsed = max(0.001, time.time() - t_start)
-        sim_fps = steps / elapsed
+        sim_fps = actual_total_steps / elapsed
 
-        # Cálculo do GAE com recompensas reescalonadas para estabilização do Critic
+        # 5. Cálculo do GAE (Generalized Advantage Estimation) por worker independente
         gamma, gae_lambda = 0.99, 0.95
-        scaled_rewards = np.array(rewards_buf, dtype=np.float32) * 0.20
-        advantages = np.zeros(len(rewards_buf), dtype=np.float32)
-        last_gae = 0.0
+        all_obs, all_acts, all_logp, all_adv, all_ret = [], [], [], [], []
+        all_danger, all_teacher = [], []
 
-        for t in reversed(range(len(rewards_buf))):
-            next_val = values_buf[t + 1] if t < len(rewards_buf) - 1 and not dones_buf[t] else 0.0
-            delta = scaled_rewards[t] + gamma * next_val - values_buf[t]
-            last_gae = delta + gamma * gae_lambda * (1.0 - float(dones_buf[t])) * last_gae
-            advantages[t] = last_gae
+        for i in range(num_w):
+            r_slice = np.array(w_rews[i], dtype=np.float32) * 0.20  # Reescalonamento saudável
+            v_slice = w_vals[i]
+            d_slice = w_dones[i]
+            n_steps = len(r_slice)
 
-        returns = advantages + np.array(values_buf, dtype=np.float32)
+            adv_worker = np.zeros(n_steps, dtype=np.float32)
+            last_gae = 0.0
+
+            for t in reversed(range(n_steps)):
+                next_val = v_slice[t + 1] if t < n_steps - 1 and not d_slice[t] else 0.0
+                delta = r_slice[t] + gamma * next_val - v_slice[t]
+                last_gae = delta + gamma * gae_lambda * (1.0 - float(d_slice[t])) * last_gae
+                adv_worker[t] = last_gae
+
+            ret_worker = adv_worker + np.array(v_slice, dtype=np.float32)
+
+            all_obs.extend(w_obs[i])
+            all_acts.extend(w_acts[i])
+            all_logp.extend(w_logp[i])
+            all_adv.extend(adv_worker)
+            all_ret.extend(ret_worker)
+            all_danger.extend(w_danger[i])
+            all_teacher.extend(w_teacher[i])
 
         return (
-            torch.as_tensor(np.array(obs_buf), dtype=torch.float32, device=self.device),
-            torch.as_tensor(np.array(acts_buf), dtype=torch.float32, device=self.device),
-            torch.as_tensor(np.array(log_probs_buf), dtype=torch.float32, device=self.device),
-            torch.as_tensor(advantages, dtype=torch.float32, device=self.device),
-            torch.as_tensor(returns, dtype=torch.float32, device=self.device),
-            torch.as_tensor(np.array(danger_buf), dtype=torch.float32, device=self.device),
-            torch.as_tensor(np.array(teacher_act_buf), dtype=torch.float32, device=self.device),
-            steps,
+            torch.as_tensor(np.array(all_obs), dtype=torch.float32, device=self.device),
+            torch.as_tensor(np.array(all_acts), dtype=torch.float32, device=self.device),
+            torch.as_tensor(np.array(all_logp), dtype=torch.float32, device=self.device),
+            torch.as_tensor(np.array(all_adv), dtype=torch.float32, device=self.device),
+            torch.as_tensor(np.array(all_ret), dtype=torch.float32, device=self.device),
+            torch.as_tensor(np.array(all_danger), dtype=torch.float32, device=self.device),
+            torch.as_tensor(np.array(all_teacher), dtype=torch.float32, device=self.device),
+            actual_total_steps,
             sim_fps,
         )
 
@@ -462,9 +544,9 @@ class MasteryCurriculumEngine:
         danger_b: torch.Tensor,
         teacher_act_b: torch.Tensor,
         epochs: int = 4,
-        batch_size: int = 128,
+        batch_size: int = 256,
     ) -> Tuple[float, float]:
-        """Treina a rede neural na GPU com Clipped Value Loss e Destilação Residual do Professor."""
+        """Treina a rede neural na GPU RTX 3060 com lotes grandes, Clipped Loss e Teacher Guidance."""
         adv_norm = (adv_b - adv_b.mean()) / (adv_b.std() + 1e-8)
         dataset_size = len(obs_b)
 
@@ -534,11 +616,13 @@ class MasteryCurriculumEngine:
         return total_p_loss / max(1, num_updates), total_v_loss / max(1, num_updates)
 
     def _evaluate_mastery_benchmark(self, episodes: int = 10, max_steps: int = 1200) -> Dict[str, float]:
-        """Bateria de testes determinísticos na CPU Fast-Policy para calcular o Índice de Maestria."""
+        """Bateria de testes determinísticos para calcular o Índice de Maestria."""
         scores = []
         kills = []
         lifespans = []
         wall_deaths = 0
+
+        self.model.eval()
 
         for _ in range(episodes):
             engine = SlitherEngine(
@@ -556,9 +640,9 @@ class MasteryCurriculumEngine:
                     foods=engine.foods,
                     arena_radius=engine.arena_radius,
                 )
-                tensor_obs = torch.as_tensor(obs, dtype=torch.float32).unsqueeze(0)
+                tensor_obs = torch.as_tensor(obs, dtype=torch.float32, device=self.device).unsqueeze(0)
                 with torch.inference_mode():
-                    pred_ang, pred_boost, _ = self.cpu_rollout_model(tensor_obs)
+                    pred_ang, pred_boost, _ = self.model(tensor_obs)
                 ang_val = float(pred_ang[0, 0].item())
                 boost_val = float(torch.sigmoid(pred_boost[0, 0]).item()) > 0.5
 
@@ -576,6 +660,8 @@ class MasteryCurriculumEngine:
             scores.append(player.score)
             kills.append(player.kills)
             lifespans.append(step * 0.033)
+
+        self.model.train()
 
         avg_score = float(np.mean(scores))
         max_score = float(np.max(scores))
@@ -614,10 +700,11 @@ class MasteryCurriculumEngine:
         bar_str = "█" * filled + "░" * (bar_len - filled)
 
         print("\n" + "=" * 65)
-        print("   SLITHER AI - TELEMETRIA 24/7 (PAINEL DE MAESTRIA CALIBRADO)")
+        print("   SLITHER AI - TELEMETRIA 24/7 (MOTOR VETORIZADO GPU ATIVA)")
         print("=" * 65)
         print(f" Tempo Decorrido:    {time_str} | Ciclo: #{self.current_cycle:04d}")
         print(f" Vazão da Simulação: {fps:,.0f} FPS | Total de Ticks: {self.total_ticks_simulated:,}")
+        print(f" Paralelismo Ativo:  {self.num_workers} Workers CPU | Aceleração: {self.device.type.upper()}")
         print("-" * 65)
         print(f" Comprimento Médio:  {m_data['avg_score']:.1f} segs (Recorde: {self.all_time_best_score:.1f})")
         print(f" Comprimento Máximo: {m_data['max_score']:.1f} segs")
@@ -639,3 +726,9 @@ class MasteryCurriculumEngine:
         self.model.save_model(ppo_path)
         export_to_torchscript(self.model, traced_path)
         print(f"[*] Pesos de Ouro atualizados e salvos com sucesso em: {master_path}")
+
+    def __del__(self):
+        try:
+            self._close_worker_processes()
+        except Exception:
+            pass

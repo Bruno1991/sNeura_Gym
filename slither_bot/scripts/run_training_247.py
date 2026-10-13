@@ -50,6 +50,18 @@ def main():
         default=None,
         help="Dispositivo de treino ('cuda' ou 'cpu', padrão: detecção automática)",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=8,
+        help="Quantidade de processos paralelos na CPU (padrão: 8 workers)",
+    )
+    parser.add_argument(
+        "--steps",
+        type=int,
+        default=4096,
+        help="Passos de simulação coletados por ciclo (padrão: 4096)",
+    )
 
     args = parser.parse_args()
 
@@ -59,6 +71,8 @@ def main():
         save_dir=args.save_dir,
         device=args.device,
         learning_rate=args.lr,
+        num_workers=args.workers,
+        rollout_steps=args.steps,
     )
 
     engine.run_continuous_training(max_hours=args.max_hours)

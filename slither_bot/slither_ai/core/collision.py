@@ -29,16 +29,24 @@ class SlitherCollision:
 
         eaten: List[Food] = []
         head_r = snake.radius
+        sx, sy = snake.x, snake.y
+        box_limit = head_r + 15.0
 
         for food in foods:
             if food.is_eaten:
                 continue
-            
+
+            # Bounding Box pré-rejeição de alta velocidade
+            if abs(food.x - sx) > box_limit or abs(food.y - sy) > box_limit:
+                continue
+
             # Raio combinado de contato (cabeça + orb)
             max_dist = head_r + food.radius + 6.0  # pequeno raio magnético de sucção
             max_dist_sq = max_dist * max_dist
-            
-            if distance_sq(snake.x, snake.y, food.x, food.y) <= max_dist_sq:
+            dx = sx - food.x
+            dy = sy - food.y
+
+            if (dx * dx + dy * dy) <= max_dist_sq:
                 food.is_eaten = True
                 snake.score += food.value
                 eaten.append(food)
@@ -60,6 +68,7 @@ class SlitherCollision:
                 continue
 
             head_a_r = a.radius
+            ax, ay = a.x, a.y
 
             for b in snakes:
                 if not b.is_alive:
@@ -67,32 +76,41 @@ class SlitherCollision:
 
                 # 1. Colisão Cabeça-com-Cabeça
                 if a.id != b.id and b.id not in dead_ids:
-                    head_dist_sq = distance_sq(a.x, a.y, b.x, b.y)
-                    comb_head_r = head_a_r + b.radius
-                    if head_dist_sq < (comb_head_r * comb_head_r):
-                        # A menor cobra morre; se iguais, ambas morrem
-                        if a.score < b.score:
-                            deaths.append((a, b))
-                            dead_ids.add(a.id)
-                            break
-                        elif b.score < a.score:
-                            deaths.append((b, a))
-                            dead_ids.add(b.id)
-                        else:
-                            deaths.append((a, b))
-                            deaths.append((b, a))
-                            dead_ids.add(a.id)
-                            dead_ids.add(b.id)
-                            break
+                    head_limit = head_a_r + b.radius
+                    if abs(ax - b.x) <= head_limit and abs(ay - b.y) <= head_limit:
+                        head_dist_sq = (ax - b.x) ** 2 + (ay - b.y) ** 2
+                        if head_dist_sq < (head_limit * head_limit):
+                            # A menor cobra morre; se iguais, ambas morrem
+                            if a.score < b.score:
+                                deaths.append((a, b))
+                                dead_ids.add(a.id)
+                                break
+                            elif b.score < a.score:
+                                deaths.append((b, a))
+                                dead_ids.add(b.id)
+                            else:
+                                deaths.append((a, b))
+                                deaths.append((b, a))
+                                dead_ids.add(a.id)
+                                dead_ids.add(b.id)
+                                break
 
                 # 2. Colisão Cabeça de A com Corpo de B (apenas com OUTRAS cobras)
                 if a.id == b.id:
                     continue  # No Slither.io, uma cobra nunca morre colidindo consigo mesma
 
+                # Bounding box pré-rejeição de cobra distante
+                if abs(ax - b.x) > 650.0 or abs(ay - b.y) > 650.0:
+                    continue
+
                 collision_found = False
                 for seg in b.segments:
                     comb_r = head_a_r + seg.radius - 2.0  # pequena tolerância suave
-                    if distance_sq(a.x, a.y, seg.x, seg.y) <= (comb_r * comb_r):
+                    if abs(ax - seg.x) > comb_r or abs(ay - seg.y) > comb_r:
+                        continue
+                    dx = ax - seg.x
+                    dy = ay - seg.y
+                    if (dx * dx + dy * dy) <= (comb_r * comb_r):
                         deaths.append((a, b))
                         dead_ids.add(a.id)
                         collision_found = True

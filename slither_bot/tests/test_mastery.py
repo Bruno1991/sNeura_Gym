@@ -35,55 +35,60 @@ def test_mastery_rollout_and_benchmark(temp_checkpoint_dir):
         eval_interval=1,
         save_dir=temp_checkpoint_dir,
         device="cpu",
+        num_workers=2,
+        rollout_steps=32,
     )
 
-    # 1. Teste de coleta de rollout com poucos passos para rapidez
-    (
-        obs_b,
-        act_b,
-        old_log_p_b,
-        adv_b,
-        ret_b,
-        danger_b,
-        teacher_act_b,
-        ticks,
-        fps,
-    ) = engine._collect_curriculum_rollout(steps=32)
-    assert obs_b.shape == (32, 32)
-    assert act_b.shape == (32, 2)
-    assert adv_b.shape == (32,)
-    assert ret_b.shape == (32,)
-    assert danger_b.shape == (32,)
-    assert teacher_act_b.shape == (32, 2)
-    assert ticks == 32
-    assert fps > 0
+    try:
+        # 1. Teste de coleta de rollout vetorizado com 2 workers
+        (
+            obs_b,
+            act_b,
+            old_log_p_b,
+            adv_b,
+            ret_b,
+            danger_b,
+            teacher_act_b,
+            ticks,
+            fps,
+        ) = engine._collect_vectorized_rollout(steps=32)
+        assert obs_b.shape == (32, 32)
+        assert act_b.shape == (32, 2)
+        assert adv_b.shape == (32,)
+        assert ret_b.shape == (32,)
+        assert danger_b.shape == (32,)
+        assert teacher_act_b.shape == (32, 2)
+        assert ticks == 32
+        assert fps > 0
 
-    # 2. Teste de otimização PPO com teacher guidance
-    p_loss, v_loss = engine._optimize_ppo(
-        obs_b,
-        act_b,
-        old_log_p_b,
-        adv_b,
-        ret_b,
-        danger_b,
-        teacher_act_b,
-        epochs=1,
-        batch_size=16,
-    )
-    assert isinstance(p_loss, float)
-    assert isinstance(v_loss, float)
+        # 2. Teste de otimização PPO com teacher guidance
+        p_loss, v_loss = engine._optimize_ppo(
+            obs_b,
+            act_b,
+            old_log_p_b,
+            adv_b,
+            ret_b,
+            danger_b,
+            teacher_act_b,
+            epochs=1,
+            batch_size=16,
+        )
+        assert isinstance(p_loss, float)
+        assert isinstance(v_loss, float)
 
-    # 3. Teste de avaliação determinística de maestria
-    m_data = engine._evaluate_mastery_benchmark(episodes=2, max_steps=50)
-    assert "mastery_index" in m_data
-    assert 0.0 <= m_data["mastery_index"] <= 100.0
-    assert "avg_score" in m_data
-    assert "avg_kills" in m_data
-    assert "wall_rate" in m_data
+        # 3. Teste de avaliação determinística de maestria
+        m_data = engine._evaluate_mastery_benchmark(episodes=2, max_steps=50)
+        assert "mastery_index" in m_data
+        assert 0.0 <= m_data["mastery_index"] <= 100.0
+        assert "avg_score" in m_data
+        assert "avg_kills" in m_data
+        assert "wall_rate" in m_data
 
-    # 4. Teste de salvamento de pesos e records JSON
-    engine._save_master_weights()
-    engine._save_persistent_records()
-    assert os.path.isfile(os.path.join(temp_checkpoint_dir, "master_bot_model.pt"))
-    assert os.path.isfile(os.path.join(temp_checkpoint_dir, "master_bot_model_traced.pt"))
-    assert os.path.isfile(os.path.join(temp_checkpoint_dir, "mastery_records.json"))
+        # 4. Teste de salvamento de pesos e records JSON
+        engine._save_master_weights()
+        engine._save_persistent_records()
+        assert os.path.isfile(os.path.join(temp_checkpoint_dir, "master_bot_model.pt"))
+        assert os.path.isfile(os.path.join(temp_checkpoint_dir, "master_bot_model_traced.pt"))
+        assert os.path.isfile(os.path.join(temp_checkpoint_dir, "mastery_records.json"))
+    finally:
+        engine._close_worker_processes()
