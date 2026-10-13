@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Slither.io - APK Native Bot AI (Descompilado do APK Oficial)
 // @namespace    http://tampermonkey.net/
-// @version      4.0
-// @description  Bot 100% autônomo baseado no código fonte de IA descompilado do APK oficial do Slither.io (gaim.Main) com desvio de 15 graus, interceptação preditiva a 95px e auto-respawn.
+// @version      4.1
+// @description  Bot 100% autônomo baseado no código fonte de IA descompilado do APK oficial do Slither.io (gaim.Main) com filtro anti-espiral, desvio tangencial de 15 graus e auto-respawn.
 // @author       Neura Gym
 // @match        http://slither.io/*
 // @match        https://slither.io/*
@@ -14,11 +14,12 @@
     'use strict';
 
     window.BOT_CONFIG = {
-        COWARDICE: 350.0,
-        COWARDICE_BOOST: 620.0,
+        COWARDICE: 380.0,
+        COWARDICE_BOOST: 650.0,
         INTERCEPT_LEAD_DIST: 95.0,
-        RAD_TANGENT: 0.35,
-        FOOD_HOLD_MS: 2200,
+        RAD_TANGENT: 0.40,
+        FOOD_HOLD_MS: 1500,
+        FOOD_REACH_DIST: 50.0,
         AVOID_SWITCH_MS: 2000,
         BORDER_MARGIN: 800.0,
         AUTO_RESPAWN: true
@@ -142,9 +143,8 @@
 
     function triggerRespawn() {
         try {
-            if (typeof play_btn !== 'undefined' && play_btn && play_btn.elem) {
-                play_btn.elem.click();
-            } else {
+            if (typeof play_btn !== 'undefined' && play_btn && play_btn.elem) play_btn.elem.click();
+            else {
                 var btn = document.getElementById('playh');
                 if (btn) btn.click();
             }
@@ -191,6 +191,7 @@
         var arenaRadius = getArenaRadius();
         var centerX = arenaRadius;
         var centerY = arenaRadius;
+        var pi2 = Math.PI * 2;
 
         // 1. BORDA DA ARENA
         var dxCenter = myX - centerX;
@@ -205,7 +206,7 @@
             return;
         }
 
-        // 2. EVITAÇÃO DE COLISÃO DEFENSIVA (Chebyshev do APK)
+        // 2. EVITAÇÃO DE COLISÃO DEFENSIVA
         var bidt = window.botState.isBoosting ? window.BOT_CONFIG.COWARDICE_BOOST : window.BOT_CONFIG.COWARDICE;
         var avpo = null;
 
@@ -218,9 +219,17 @@
         for (var i = 0; i < allSnakes.length; i++) {
             var sk2 = allSnakes[i];
             if (!sk2 || sk2.id === me.id || sk2.dead) continue;
+
+            var hdx = Math.abs(myX - sk2.xx);
+            var hdy = Math.abs(myY - sk2.yy);
+            var hdt = (hdx > hdy) ? hdx : hdy;
+            if (hdt < bidt * 1.25) {
+                bidt = hdt;
+                avpo = { xx: sk2.xx, yy: sk2.yy };
+            }
+
             var pts = sk2.pts;
             if (!pts) continue;
-
             for (var p = pts.length - 1; p >= 0; p--) {
                 var po = pts[p];
                 if (!po || po.dying) continue;
@@ -238,6 +247,7 @@
 
         if (avpo !== null) {
             window.botState.currentMode = 'DESVIO DEFENSIVO (15°)';
+            window.botState.targetFood = null;
             var awayAngle = Math.atan2(myY - avpo.yy, myX - avpo.xx);
             var tangent = (window.botState.avoidanceDir === 1) ? window.BOT_CONFIG.RAD_TANGENT : -window.BOT_CONFIG.RAD_TANGENT;
             steerSnake(awayAngle + tangent, false);
@@ -245,9 +255,18 @@
             return;
         }
 
-        // 3. MODO PREDATÓRIO (95px Lead Intercept)
+        // VERIFICAÇÃO ANTI-ESPIRAL
+        if (window.botState.targetFood) {
+            var tf = window.botState.targetFood;
+            var distToTarget = Math.sqrt(Math.pow(myX - tf.xx, 2) + Math.pow(myY - tf.yy, 2));
+            if (distToTarget < window.BOT_CONFIG.FOOD_REACH_DIST || tf.eaten) {
+                window.botState.targetFood = null;
+            }
+        }
+
+        // 3. MODO PREDATÓRIO
         var nearestOpp = null;
-        var nearestOppDist = 800;
+        var nearestOppDist = 750;
 
         for (var j = 0; j < allSnakes.length; j++) {
             var opp = allSnakes[j];
@@ -281,29 +300,28 @@
             return;
         }
 
-        // 4. MODO EMPOLGADO
-        if (window.botState.excited) {
-            if (now > window.botState.stopExcitedTm) window.botState.excited = false;
-        } else if (me.sct > 12 && Math.random() < 0.003) {
-            window.botState.excited = true;
-            window.botState.stopExcitedTm = now + 600 + Math.floor(Math.random() * 1800);
-        }
-
-        // 5. COLETA E FORRAGEAMENTO DE COMIDA
-        if (now > window.botState.changeTargetAfterTm || !window.botState.targetFood || window.botState.targetFood.eaten) {
-            var bfo = null;
-            var bfv = 1200;
+        // 4. COLETA DE COMIDA COM FILTRO FRONTAL
+        if (now > window.botState.changeTargetAfterTm || !window.botState.targetFood) {
+            var bestFood = null;
+            var bestScore = -999999;
 
             var preysList = getPreys();
             for (var pr = 0; pr < preysList.length; pr++) {
                 var prey = preysList[pr];
                 if (!prey || prey.eaten) continue;
-                var pidx = Math.abs(myX - prey.xx);
-                var pidy = Math.abs(myY - prey.yy);
-                var pidt = (pidx > pidy) ? pidx : pidy;
-                if (pidt < bfv) {
-                    bfv = pidt;
-                    bfo = prey;
+                var pdx = prey.xx - myX;
+                var pdy = prey.yy - myY;
+                var pDistSq = pdx * pdx + pdy * pdy;
+                if (pDistSq > 1200 * 1200 || pDistSq < 15 * 15) continue;
+                var pd = Math.sqrt(pDistSq);
+                var pAng = Math.atan2(pdy, pdx);
+                var pDiff = Math.abs(((pAng - me.ang + Math.PI * 3) % pi2) - Math.PI);
+                if (pDiff > 2.0) continue;
+
+                var pScore = (1200 - pd) + (Math.PI - pDiff) * 150 + 400;
+                if (pScore > bestScore) {
+                    bestScore = pScore;
+                    bestFood = prey;
                 }
             }
 
@@ -312,17 +330,25 @@
             for (var f = 0; f < count; f++) {
                 var fo = foodsList[f];
                 if (!fo || fo.eaten) continue;
-                var fidx = Math.abs(myX - fo.xx);
-                var fidy = Math.abs(myY - fo.yy);
-                var fidt = (fidx > fidy) ? fidx : fidy;
-                if (fidt < bfv) {
-                    bfv = fidt;
-                    bfo = fo;
+                var fdx = fo.xx - myX;
+                var fdy = fo.yy - myY;
+                var fDistSq = fdx * fdx + fdy * fdy;
+                if (fDistSq > 1000 * 1000 || fDistSq < 20 * 20) continue;
+                var fd = Math.sqrt(fDistSq);
+                var fAng = Math.atan2(fdy, fdx);
+                var fDiff = Math.abs(((fAng - me.ang + Math.PI * 3) % pi2) - Math.PI);
+                if (fDiff > 2.0) continue;
+
+                var szBonus = (fo.sz || 1) * 20;
+                var fScore = (1000 - fd) + (Math.PI - fDiff) * 120 + szBonus;
+                if (fScore > bestScore) {
+                    bestScore = fScore;
+                    bestFood = fo;
                 }
             }
 
-            if (bfo !== null) {
-                window.botState.targetFood = bfo;
+            if (bestFood !== null) {
+                window.botState.targetFood = bestFood;
                 window.botState.changeTargetAfterTm = now + window.BOT_CONFIG.FOOD_HOLD_MS;
             }
         }
@@ -332,10 +358,10 @@
             var foodAng = Math.atan2(window.botState.targetFood.yy - myY, window.botState.targetFood.xx - myX);
             steerSnake(foodAng, window.botState.excited);
         } else {
-            window.botState.currentMode = 'PATRULHA';
-            if (Math.random() < 0.05) {
-                var patrolAng = me.ang + (Math.random() - 0.5) * 0.8;
-                steerSnake(patrolAng, window.botState.excited);
+            window.botState.currentMode = 'CRUZEIRO SUAVE';
+            if (Math.random() < 0.03) {
+                var cruiseAng = me.ang + (Math.random() - 0.5) * 0.4;
+                steerSnake(cruiseAng, window.botState.excited);
             } else {
                 steerSnake(me.ang, window.botState.excited);
             }
@@ -370,7 +396,7 @@
                 user-select: none;
             ">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px;">
-                    <span style="font-weight: 700; color: #38bdf8; font-size: 14px;">🐍 BOT NATIVO APK v4</span>
+                    <span style="font-weight: 700; color: #38bdf8; font-size: 14px;">🐍 BOT NATIVO APK v4.1</span>
                     <span id="bot-badge" style="background:#10b981; color:#fff; font-size:10px; font-weight:800; padding:2px 6px; border-radius:6px;">ATIVO [T]</span>
                 </div>
                 <div style="display:grid; grid-template-columns: 95px 1fr; gap: 4px; font-size: 12px;">

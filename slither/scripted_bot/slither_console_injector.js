@@ -1,13 +1,13 @@
 /**
  * ============================================================================
- * SLITHER.IO - BOT NATIVO APK (CONSOLE INJECTOR) - VERSÃO 4.0 DEFINITIVA
- * CÉREBRO: 100% FIEL À IA NATIVA DESCOMPILADA DO APK SLITHER (gaim.Main)
+ * SLITHER.IO - BOT NATIVO APK (CONSOLE INJECTOR) - VERSÃO 4.1 ULTRA-FLUÍDO
+ * CÉREBRO: 100% FIEL À IA DO APK SLITHER (gaim.Main) + FILTRO ANTI-ESPIRAL
  * ============================================================================
  * Como usar:
  * 1. Abra https://slither.io no seu navegador.
  * 2. Abra o Console do DevTools (F12 ou Ctrl+Shift+I -> Console).
  * 3. Cole todo este código e aperte Enter.
- * 4. Digite seu apelido e clique em "Play" (ou o bot clica automaticamente!).
+ * 4. Digite seu apelido e clique em "Play" (ou deixe o auto-respawn jogar!).
  *
  * Teclas de Atalho no Jogo:
  * [T] -> Alterna Piloto Automático LIGADO / DESLIGADO (para jogar no mouse)
@@ -25,13 +25,14 @@
     }
 
     window.BOT_CONFIG = {
-        COWARDICE: 350.0,              // Distância de desvio defensivo (Chebyshev)
-        COWARDICE_BOOST: 620.0,        // Distância de desvio ao usar turbo
+        COWARDICE: 380.0,              // Distância de desvio defensivo (Chebyshev)
+        COWARDICE_BOOST: 650.0,        // Distância de desvio ao usar turbo
         INTERCEPT_LEAD_DIST: 95.0,     // Mira preditiva a 95px na frente do rival (Main.as l. 11214)
-        RAD_TANGENT: 0.35,             // Ângulo tangencial de desvio (~20 graus)
-        FOOD_HOLD_MS: 2200,            // Persistência no alvo de comida (ms)
+        RAD_TANGENT: 0.40,             // Ângulo tangencial de desvio (~23 graus para manobra suave)
+        FOOD_HOLD_MS: 1500,            // Persistência máxima no mesmo orb de comida (ms)
+        FOOD_REACH_DIST: 50.0,         // Considera comida atingida se estiver a menos de 50px (evita loop)
         AVOID_SWITCH_MS: 2000,         // Alterna horário/anti-horário a cada 2000ms (Main.as l. 11100)
-        BORDER_MARGIN: 800.0,          // Margem de segurança da parede circular
+        BORDER_MARGIN: 800.0,          // Margem de segurança da parede circular externa
         AUTO_RESPAWN: true             // Renascer automaticamente após a morte
     };
 
@@ -130,10 +131,7 @@
             else if (typeof window.setAcceleration === 'function') window.setAcceleration(window.botState.isBoosting ? 1 : 0);
         } catch(e) {}
 
-        var socket = null;
-        try { if (typeof ws !== 'undefined' && ws) socket = ws; } catch(e) {}
-        if (!socket) socket = window._activeWs;
-
+        var socket = (typeof ws !== 'undefined' && ws) ? ws : window._activeWs;
         if (socket && socket.readyState === 1) {
             var pi2 = Math.PI * 2;
             var norm = ((angleRad % pi2) + pi2) % pi2;
@@ -156,9 +154,8 @@
 
     function triggerRespawn() {
         try {
-            if (typeof play_btn !== 'undefined' && play_btn && play_btn.elem) {
-                play_btn.elem.click();
-            } else {
+            if (typeof play_btn !== 'undefined' && play_btn && play_btn.elem) play_btn.elem.click();
+            else {
                 var btn = document.getElementById('playh');
                 if (btn) btn.click();
             }
@@ -205,11 +202,12 @@
         var arenaRadius = getArenaRadius();
         var centerX = arenaRadius;
         var centerY = arenaRadius;
+        var pi2 = Math.PI * 2;
 
         if (now - window.botState.logTimer > 3000) {
             window.botState.logTimer = now;
             var segs = me.sct || (me.pts ? me.pts.length : 0);
-            console.log(`[Slither APK Bot] Partida #${window.botState.gamesPlayed} | Modo: ${window.botState.currentMode} | Tamanho: ${segs} | Turbo: ${window.botState.isBoosting ? 'SIM' : 'NÃO'}`);
+            console.log(`[Slither APK Bot] Partida #${window.botState.gamesPlayed} | Modo: ${window.botState.currentMode} | Segmentos: ${segs} | Turbo: ${window.botState.isBoosting ? 'SIM' : 'NÃO'}`);
         }
 
         // --- 1. BORDA DA ARENA (Círculo centrado em (grd, grd)) ---
@@ -225,7 +223,7 @@
             return;
         }
 
-        // --- 2. EVITAÇÃO DE COLISÃO DEFENSIVA (gaim.Main l. 11040-11099) ---
+        // --- 2. EVITAÇÃO DE COLISÃO DEFENSIVA (Cabeça + Corpo, Chebyshev) ---
         var bidt = window.botState.isBoosting ? window.BOT_CONFIG.COWARDICE_BOOST : window.BOT_CONFIG.COWARDICE;
         var avpo = null;
 
@@ -238,9 +236,17 @@
         for (var i = 0; i < allSnakes.length; i++) {
             var sk2 = allSnakes[i];
             if (!sk2 || sk2.id === me.id || sk2.dead) continue;
+
+            var hdx = Math.abs(myX - sk2.xx);
+            var hdy = Math.abs(myY - sk2.yy);
+            var hdt = (hdx > hdy) ? hdx : hdy;
+            if (hdt < bidt * 1.25) {
+                bidt = hdt;
+                avpo = { xx: sk2.xx, yy: sk2.yy };
+            }
+
             var pts = sk2.pts;
             if (!pts) continue;
-
             for (var p = pts.length - 1; p >= 0; p--) {
                 var po = pts[p];
                 if (!po || po.dying) continue;
@@ -258,6 +264,7 @@
 
         if (avpo !== null) {
             window.botState.currentMode = 'DESVIO DEFENSIVO (15°)';
+            window.botState.targetFood = null;
             var awayAngle = Math.atan2(myY - avpo.yy, myX - avpo.xx);
             var tangent = (window.botState.avoidanceDir === 1) ? window.BOT_CONFIG.RAD_TANGENT : -window.BOT_CONFIG.RAD_TANGENT;
             steerSnake(awayAngle + tangent, false);
@@ -265,9 +272,18 @@
             return;
         }
 
+        // --- VERIFICAÇÃO ANTI-ESPIRAL: COMIDA ATINGIDA ---
+        if (window.botState.targetFood) {
+            var tf = window.botState.targetFood;
+            var distToTarget = Math.sqrt(Math.pow(myX - tf.xx, 2) + Math.pow(myY - tf.yy, 2));
+            if (distToTarget < window.BOT_CONFIG.FOOD_REACH_DIST || tf.eaten) {
+                window.botState.targetFood = null;
+            }
+        }
+
         // --- 3. MODO PREDATÓRIO / VIOLÊNCIA (gaim.Main l. 11163-11184) ---
         var nearestOpp = null;
-        var nearestOppDist = 800;
+        var nearestOppDist = 750;
 
         for (var j = 0; j < allSnakes.length; j++) {
             var opp = allSnakes[j];
@@ -301,29 +317,28 @@
             return;
         }
 
-        // --- 4. MODO EMPOLGADO (Boost Esporádico, l. 11185-11200) ---
-        if (window.botState.excited) {
-            if (now > window.botState.stopExcitedTm) window.botState.excited = false;
-        } else if (me.sct > 12 && Math.random() < 0.003) {
-            window.botState.excited = true;
-            window.botState.stopExcitedTm = now + 600 + Math.floor(Math.random() * 1800);
-        }
-
-        // --- 5. COLETA E FORRAGEAMENTO DE COMIDA (gaim.Main l. 11115-11162) ---
-        if (now > window.botState.changeTargetAfterTm || !window.botState.targetFood || window.botState.targetFood.eaten) {
-            var bfo = null;
-            var bfv = 1200;
+        // --- 4. COLETA DE COMIDA COM FILTRO FRONTAL ---
+        if (now > window.botState.changeTargetAfterTm || !window.botState.targetFood) {
+            var bestFood = null;
+            var bestScore = -999999;
 
             var preysList = getPreys();
             for (var pr = 0; pr < preysList.length; pr++) {
                 var prey = preysList[pr];
                 if (!prey || prey.eaten) continue;
-                var pidx = Math.abs(myX - prey.xx);
-                var pidy = Math.abs(myY - prey.yy);
-                var pidt = (pidx > pidy) ? pidx : pidy;
-                if (pidt < bfv) {
-                    bfv = pidt;
-                    bfo = prey;
+                var pdx = prey.xx - myX;
+                var pdy = prey.yy - myY;
+                var pDistSq = pdx * pdx + pdy * pdy;
+                if (pDistSq > 1200 * 1200 || pDistSq < 15 * 15) continue;
+                var pd = Math.sqrt(pDistSq);
+                var pAng = Math.atan2(pdy, pdx);
+                var pDiff = Math.abs(((pAng - me.ang + Math.PI * 3) % pi2) - Math.PI);
+                if (pDiff > 2.0) continue;
+
+                var pScore = (1200 - pd) + (Math.PI - pDiff) * 150 + 400;
+                if (pScore > bestScore) {
+                    bestScore = pScore;
+                    bestFood = prey;
                 }
             }
 
@@ -332,17 +347,25 @@
             for (var f = 0; f < count; f++) {
                 var fo = foodsList[f];
                 if (!fo || fo.eaten) continue;
-                var fidx = Math.abs(myX - fo.xx);
-                var fidy = Math.abs(myY - fo.yy);
-                var fidt = (fidx > fidy) ? fidx : fidy;
-                if (fidt < bfv) {
-                    bfv = fidt;
-                    bfo = fo;
+                var fdx = fo.xx - myX;
+                var fdy = fo.yy - myY;
+                var fDistSq = fdx * fdx + fdy * fdy;
+                if (fDistSq > 1000 * 1000 || fDistSq < 20 * 20) continue;
+                var fd = Math.sqrt(fDistSq);
+                var fAng = Math.atan2(fdy, fdx);
+                var fDiff = Math.abs(((fAng - me.ang + Math.PI * 3) % pi2) - Math.PI);
+                if (fDiff > 2.0) continue;
+
+                var szBonus = (fo.sz || 1) * 20;
+                var fScore = (1000 - fd) + (Math.PI - fDiff) * 120 + szBonus;
+                if (fScore > bestScore) {
+                    bestScore = fScore;
+                    bestFood = fo;
                 }
             }
 
-            if (bfo !== null) {
-                window.botState.targetFood = bfo;
+            if (bestFood !== null) {
+                window.botState.targetFood = bestFood;
                 window.botState.changeTargetAfterTm = now + window.BOT_CONFIG.FOOD_HOLD_MS;
             }
         }
@@ -352,10 +375,10 @@
             var foodAng = Math.atan2(window.botState.targetFood.yy - myY, window.botState.targetFood.xx - myX);
             steerSnake(foodAng, window.botState.excited);
         } else {
-            window.botState.currentMode = 'PATRULHA';
-            if (Math.random() < 0.05) {
-                var patrolAng = me.ang + (Math.random() - 0.5) * 0.8;
-                steerSnake(patrolAng, window.botState.excited);
+            window.botState.currentMode = 'CRUZEIRO SUAVE';
+            if (Math.random() < 0.03) {
+                var cruiseAng = me.ang + (Math.random() - 0.5) * 0.4;
+                steerSnake(cruiseAng, window.botState.excited);
             } else {
                 steerSnake(me.ang, window.botState.excited);
             }
@@ -390,7 +413,7 @@
                 user-select: none;
             ">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px;">
-                    <span style="font-weight: 700; color: #38bdf8; font-size: 14px;">🐍 BOT NATIVO APK v4</span>
+                    <span style="font-weight: 700; color: #38bdf8; font-size: 14px;">🐍 BOT NATIVO APK v4.1</span>
                     <span id="bot-badge" style="background:#10b981; color:#fff; font-size:10px; font-weight:800; padding:2px 6px; border-radius:6px;">ATIVO [T]</span>
                 </div>
                 <div style="display:grid; grid-template-columns: 95px 1fr; gap: 4px; font-size: 12px;">
@@ -471,5 +494,5 @@
     createHUD();
     window._slitherBotTimer = setInterval(runBotCycle, 33);
 
-    console.log('%c[Slither APK Bot v4]%c INJETADO COM SUCESSO! Auto-pilot e Auto-Respawn ativos. Dê Play ou deixe o bot jogar.', 'background:#10b981;color:#fff;font-weight:bold;padding:5px 10px;border-radius:4px;', 'color:#38bdf8;');
+    console.log('%c[Slither APK Bot v4.1]%c INJETADO! Filtro anti-espiral e navegação fluida ativos.', 'background:#10b981;color:#fff;font-weight:bold;padding:5px 10px;border-radius:4px;', 'color:#38bdf8;');
 })();
