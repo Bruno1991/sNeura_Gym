@@ -1,8 +1,11 @@
-"""Script CLI para Iniciar o Treinamento Contínuo 24/7 até a Maestria Neural."""
-
 import argparse
+import os
 import sys
+import warnings
 from pathlib import Path
+
+os.environ["PYTHONWARNINGS"] = "ignore::FutureWarning"
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 # Adiciona raiz ao path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -62,6 +65,12 @@ def main():
         default=4096,
         help="Passos de simulação coletados por ciclo (padrão: 4096)",
     )
+    parser.add_argument(
+        "--max-cycles",
+        type=int,
+        default=None,
+        help="Limite opcional de ciclos para testes e validação (padrão: None = roda continuamente)",
+    )
 
     args = parser.parse_args()
 
@@ -75,7 +84,7 @@ def main():
         rollout_steps=args.steps,
     )
 
-    engine.run_continuous_training(max_hours=args.max_hours)
+    engine.run_continuous_training(max_hours=args.max_hours, max_cycles=args.max_cycles)
 
 
 if __name__ == "__main__":

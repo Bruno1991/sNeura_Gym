@@ -18,8 +18,12 @@ import os
 import signal
 import sys
 import time
+import warnings
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+os.environ["PYTHONWARNINGS"] = "ignore::FutureWarning"
+warnings.filterwarnings("ignore", category=FutureWarning)
 import numpy as np
 import torch
 import torch.nn as nn
@@ -188,6 +192,7 @@ class MasteryCurriculumEngine:
         # Gerenciamento de Workers de Processo
         self.pipes: List[mp.connection.Connection] = []
         self.processes: List[mp.Process] = []
+        self.curr_obs: Optional[np.ndarray] = None
         self.workers_initialized = False
 
     def _handle_interrupt(self, sig, frame):
@@ -211,8 +216,9 @@ class MasteryCurriculumEngine:
                     self.total_ticks_simulated = int(data.get("total_ticks_simulated", self.total_ticks_simulated))
                     self.current_cycle = int(data.get("total_cycles", self.current_cycle))
                     print(
-                        f"[*] Recordes Históricos recuperados: Comprimento {self.all_time_best_score:.1f} | "
-                        f"Kills {self.all_time_best_kills:.2f} | Maestria {self.all_time_best_mastery:.1f}%"
+                        f"[*] Recordes Historicos recuperados: Comprimento {self.all_time_best_score:.1f} | "
+                        f"Kills {self.all_time_best_kills:.2f} | Maestria {self.all_time_best_mastery:.1f}%",
+                        flush=True,
                     )
             except Exception as e:
                 print(f"[!] Erro ao carregar recordes ({e}).")
@@ -259,6 +265,8 @@ class MasteryCurriculumEngine:
             self.pipes.append(parent_conn)
             self.processes.append(p)
 
+        # Consome a observação inicial de cada worker UMA ÚNICA VEZ
+        self.curr_obs = np.array([pipe.recv() for pipe in self.pipes], dtype=np.float32)
         self.workers_initialized = True
 
     def _close_worker_processes(self):
@@ -279,6 +287,7 @@ class MasteryCurriculumEngine:
 
         self.pipes.clear()
         self.processes.clear()
+        self.curr_obs = None
         self.workers_initialized = False
 
     def initialize_bootstrap(self):
@@ -309,7 +318,7 @@ class MasteryCurriculumEngine:
             self.ref_model = copy.deepcopy(self.model).to(self.device)
             self.ref_model.eval()
 
-    def run_continuous_training(self, max_hours: Optional[float] = None):
+    def run_continuous_training(self, max_hours: Optional[float] = None, max_cycles: Optional[int] = None):
         """Loop principal de treinamento contínuo 24/7 com aceleração multi-core e GPU."""
         self.initialize_bootstrap()
         self._start_worker_processes()
@@ -328,6 +337,7 @@ class MasteryCurriculumEngine:
         print("=" * 65 + "\n")
 
         try:
+            start_cycle = self.current_cycle
             while not self.stop_requested:
                 self.current_cycle += 1
 
@@ -337,6 +347,10 @@ class MasteryCurriculumEngine:
                     if elapsed_hours >= max_hours:
                         print(f"[+] Limite de tempo de {max_hours}h alcançado. Finalizando.")
                         break
+
+                if max_cycles is not None and (self.current_cycle - start_cycle) >= max_cycles:
+                    print(f"[+] Limite de {max_cycles} ciclos alcançado. Finalizando.")
+                    break
 
                 # 1. Coleta de Trajetórias Vetorizadas com Batched GPU Inference
                 (
@@ -365,7 +379,14 @@ class MasteryCurriculumEngine:
                     batch_size=256,
                 )
 
-                # 3. Bateria de Avaliação e Benchmark de Maestria
+                # Feedback em tempo real a cada ciclo
+                print(
+                    f"[*] Ciclo #{self.current_cycle:04d} concluido ({cycle_fps:,.0f} FPS) | "
+                    f"Passos: {cycle_ticks:,} | PPO Loss: {policy_loss:.4f} / {value_loss:.4f}",
+                    flush=True,
+                )
+
+                # 3. Bateria de Avaliacao e Benchmark de Maestria
                 if self.current_cycle % self.eval_interval == 0:
                     mastery_data = self._evaluate_mastery_benchmark(episodes=10)
                     self._display_dashboard(mastery_data, cycle_fps, policy_loss, value_loss)
@@ -423,8 +444,8 @@ class MasteryCurriculumEngine:
         iters = max(1, steps // num_w)
         actual_total_steps = iters * num_w
 
-        # Recebe primeira observação de cada worker
-        curr_obs = np.array([pipe.recv() for pipe in self.pipes], dtype=np.float32)
+        # Utiliza observação atual contínua dos workers (sem re-leitura de pipe)
+        curr_obs = self.curr_obs
 
         # Buffers estruturados por worker: worker_idx -> list of steps
         w_obs = [[] for _ in range(num_w)]
@@ -475,6 +496,7 @@ class MasteryCurriculumEngine:
 
             curr_obs = np.array(next_obs, dtype=np.float32)
 
+        self.curr_obs = curr_obs
         elapsed = max(0.001, time.time() - t_start)
         sim_fps = actual_total_steps / elapsed
 
@@ -697,24 +719,24 @@ class MasteryCurriculumEngine:
         mastery = m_data["mastery_index"]
         bar_len = 20
         filled = int((mastery / 100.0) * bar_len)
-        bar_str = "█" * filled + "░" * (bar_len - filled)
+        bar_str = "#" * filled + "-" * (bar_len - filled)
 
         print("\n" + "=" * 65)
         print("   SLITHER AI - TELEMETRIA 24/7 (MOTOR VETORIZADO GPU ATIVA)")
         print("=" * 65)
         print(f" Tempo Decorrido:    {time_str} | Ciclo: #{self.current_cycle:04d}")
-        print(f" Vazão da Simulação: {fps:,.0f} FPS | Total de Ticks: {self.total_ticks_simulated:,}")
-        print(f" Paralelismo Ativo:  {self.num_workers} Workers CPU | Aceleração: {self.device.type.upper()}")
+        print(f" Vazao da Simulacao: {fps:,.0f} FPS | Total de Ticks: {self.total_ticks_simulated:,}")
+        print(f" Paralelismo Ativo:  {self.num_workers} Workers CPU | Aceleracao: {self.device.type.upper()}")
         print("-" * 65)
-        print(f" Comprimento Médio:  {m_data['avg_score']:.1f} segs (Recorde: {self.all_time_best_score:.1f})")
-        print(f" Comprimento Máximo: {m_data['max_score']:.1f} segs")
+        print(f" Comprimento Medio:  {m_data['avg_score']:.1f} segs (Recorde: {self.all_time_best_score:.1f})")
+        print(f" Comprimento Maximo: {m_data['max_score']:.1f} segs")
         print(f" Abates por Partida: {m_data['avg_kills']:.2f} kills (Recorde: {self.all_time_best_kills:.2f})")
-        print(f" Tempo Médio Vivo:   {m_data['avg_survival']:.1f} segundos")
+        print(f" Tempo Medio Vivo:   {m_data['avg_survival']:.1f} segundos")
         print(f" Mortes em Borda:    {m_data['wall_rate'] * 100:.1f}%")
         print(f" Loss PPO / Critic:  {p_loss:.4f} / {v_loss:.4f}")
         print("-" * 65)
-        print(f" ÍNDICE DE MAESTRIA: [{bar_str}] {mastery:.1f}% / 100.0%")
-        print("=" * 65 + "\n")
+        print(f" INDICE DE MAESTRIA: [{bar_str}] {mastery:.1f}% / 100.0%")
+        print("=" * 65 + "\n", flush=True)
 
     def _save_master_weights(self):
         """Salva os melhores pesos neurais de ouro em disco."""
