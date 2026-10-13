@@ -38,17 +38,37 @@ def test_mastery_rollout_and_benchmark(temp_checkpoint_dir):
     )
 
     # 1. Teste de coleta de rollout com poucos passos para rapidez
-    obs_b, act_b, old_log_p_b, adv_b, ret_b, ticks, fps = engine._collect_curriculum_rollout(steps=32)
+    (
+        obs_b,
+        act_b,
+        old_log_p_b,
+        adv_b,
+        ret_b,
+        danger_b,
+        teacher_act_b,
+        ticks,
+        fps,
+    ) = engine._collect_curriculum_rollout(steps=32)
     assert obs_b.shape == (32, 32)
     assert act_b.shape == (32, 2)
     assert adv_b.shape == (32,)
     assert ret_b.shape == (32,)
+    assert danger_b.shape == (32,)
+    assert teacher_act_b.shape == (32, 2)
     assert ticks == 32
     assert fps > 0
 
-    # 2. Teste de otimização PPO
+    # 2. Teste de otimização PPO com teacher guidance
     p_loss, v_loss = engine._optimize_ppo(
-        obs_b, act_b, old_log_p_b, adv_b, ret_b, epochs=1, batch_size=16
+        obs_b,
+        act_b,
+        old_log_p_b,
+        adv_b,
+        ret_b,
+        danger_b,
+        teacher_act_b,
+        epochs=1,
+        batch_size=16,
     )
     assert isinstance(p_loss, float)
     assert isinstance(v_loss, float)
@@ -61,7 +81,9 @@ def test_mastery_rollout_and_benchmark(temp_checkpoint_dir):
     assert "avg_kills" in m_data
     assert "wall_rate" in m_data
 
-    # 4. Teste de salvamento de pesos
+    # 4. Teste de salvamento de pesos e records JSON
     engine._save_master_weights()
+    engine._save_persistent_records()
     assert os.path.isfile(os.path.join(temp_checkpoint_dir, "master_bot_model.pt"))
     assert os.path.isfile(os.path.join(temp_checkpoint_dir, "master_bot_model_traced.pt"))
+    assert os.path.isfile(os.path.join(temp_checkpoint_dir, "mastery_records.json"))
