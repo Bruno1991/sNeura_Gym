@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Slither.io - APK Native Bot AI (Descompilado do APK Oficial)
 // @namespace    http://tampermonkey.net/
-// @version      4.1
-// @description  Bot 100% autônomo baseado no código fonte de IA descompilado do APK oficial do Slither.io (gaim.Main) com filtro anti-espiral, desvio tangencial de 15 graus e auto-respawn.
+// @version      4.2
+// @description  Bot 100% autônomo baseado no código fonte de IA descompilado do APK oficial do Slither.io (gaim.Main) com turbo inteligente calibrado, filtro anti-espiral e auto-respawn.
 // @author       Neura Gym
 // @match        http://slither.io/*
 // @match        https://slither.io/*
@@ -22,6 +22,7 @@
         FOOD_REACH_DIST: 50.0,
         AVOID_SWITCH_MS: 2000,
         BORDER_MARGIN: 800.0,
+        MIN_BOOST_SCORE: 3,
         AUTO_RESPAWN: true
     };
 
@@ -192,6 +193,8 @@
         var centerX = arenaRadius;
         var centerY = arenaRadius;
         var pi2 = Math.PI * 2;
+        var myScore = me.sct || (me.pts ? me.pts.length : 0);
+        var canBoost = (myScore >= window.BOT_CONFIG.MIN_BOOST_SCORE);
 
         // 1. BORDA DA ARENA
         var dxCenter = myX - centerX;
@@ -250,7 +253,8 @@
             window.botState.targetFood = null;
             var awayAngle = Math.atan2(myY - avpo.yy, myX - avpo.xx);
             var tangent = (window.botState.avoidanceDir === 1) ? window.BOT_CONFIG.RAD_TANGENT : -window.BOT_CONFIG.RAD_TANGENT;
-            steerSnake(awayAngle + tangent, false);
+            var shouldBoostEscape = (bidt < 180.0 && canBoost);
+            steerSnake(awayAngle + tangent, shouldBoostEscape);
             updateHUD();
             return;
         }
@@ -282,11 +286,11 @@
 
         if (window.botState.violent) {
             if (now > window.botState.stopViolenceTm) window.botState.violent = false;
-        } else if (me.sct > 15 && nearestOpp && nearestOpp.sct > 10) {
-            if (now > window.botState.allowViolenceAfterTm && Math.random() < 0.25) {
-                window.botState.allowViolenceAfterTm = now + 12000;
+        } else if (canBoost && nearestOpp && nearestOpp.sct > 3) {
+            if (now > window.botState.allowViolenceAfterTm && Math.random() < 0.3) {
+                window.botState.allowViolenceAfterTm = now + 10000;
                 window.botState.violent = true;
-                window.botState.stopViolenceTm = now + 3500 + Math.floor(Math.random() * 5000);
+                window.botState.stopViolenceTm = now + 2000 + Math.floor(Math.random() * 3000);
             }
         }
 
@@ -295,12 +299,20 @@
             var leadX = nearestOpp.xx + Math.cos(nearestOpp.ang) * window.BOT_CONFIG.INTERCEPT_LEAD_DIST;
             var leadY = nearestOpp.yy + Math.sin(nearestOpp.ang) * window.BOT_CONFIG.INTERCEPT_LEAD_DIST;
             var attackAng = Math.atan2(leadY - myY, leadX - myX);
-            steerSnake(attackAng, true);
+            steerSnake(attackAng, canBoost);
             updateHUD();
             return;
         }
 
-        // 4. COLETA DE COMIDA COM FILTRO FRONTAL
+        // 4. MODO EMPOLGADO
+        if (window.botState.excited) {
+            if (now > window.botState.stopExcitedTm) window.botState.excited = false;
+        } else if (canBoost && Math.random() < 0.02) {
+            window.botState.excited = true;
+            window.botState.stopExcitedTm = now + 800 + Math.floor(Math.random() * 1500);
+        }
+
+        // 5. COLETA DE COMIDA COM FILTRO FRONTAL
         if (now > window.botState.changeTargetAfterTm || !window.botState.targetFood) {
             var bestFood = null;
             var bestScore = -999999;
@@ -354,16 +366,19 @@
         }
 
         if (window.botState.targetFood && !window.botState.targetFood.eaten) {
-            window.botState.currentMode = 'COLETA DE COMIDA';
+            var isPrey = !!(window.botState.targetFood.sp || window.botState.targetFood.rsp > 1);
+            var boostFood = (isPrey && canBoost) || (window.botState.excited && canBoost);
+            window.botState.currentMode = isPrey ? 'CAÇA PRESA (TURBO)' : (boostFood ? 'COLETA COMIDA (TURBO)' : 'COLETA DE COMIDA');
             var foodAng = Math.atan2(window.botState.targetFood.yy - myY, window.botState.targetFood.xx - myX);
-            steerSnake(foodAng, window.botState.excited);
+            steerSnake(foodAng, boostFood);
         } else {
-            window.botState.currentMode = 'CRUZEIRO SUAVE';
+            var boostCruise = window.botState.excited && canBoost;
+            window.botState.currentMode = boostCruise ? 'CRUZEIRO (TURBO)' : 'CRUZEIRO SUAVE';
             if (Math.random() < 0.03) {
                 var cruiseAng = me.ang + (Math.random() - 0.5) * 0.4;
-                steerSnake(cruiseAng, window.botState.excited);
+                steerSnake(cruiseAng, boostCruise);
             } else {
-                steerSnake(me.ang, window.botState.excited);
+                steerSnake(me.ang, boostCruise);
             }
         }
         updateHUD();
@@ -396,7 +411,7 @@
                 user-select: none;
             ">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px;">
-                    <span style="font-weight: 700; color: #38bdf8; font-size: 14px;">🐍 BOT NATIVO APK v4.1</span>
+                    <span style="font-weight: 700; color: #38bdf8; font-size: 14px;">🐍 BOT NATIVO APK v4.2</span>
                     <span id="bot-badge" style="background:#10b981; color:#fff; font-size:10px; font-weight:800; padding:2px 6px; border-radius:6px;">ATIVO [T]</span>
                 </div>
                 <div style="display:grid; grid-template-columns: 95px 1fr; gap: 4px; font-size: 12px;">
@@ -436,6 +451,7 @@
             modeText.innerText = window.botState.currentMode;
             if (window.botState.currentMode.indexOf('DESVIO') >= 0) modeText.style.color = '#ef4444';
             else if (window.botState.currentMode.indexOf('ATAQUE') >= 0) modeText.style.color = '#f97316';
+            else if (window.botState.currentMode.indexOf('TURBO') >= 0) modeText.style.color = '#f43f5e';
             else if (window.botState.currentMode.indexOf('COLETA') >= 0) modeText.style.color = '#38bdf8';
             else if (window.botState.currentMode.indexOf('BORDA') >= 0) modeText.style.color = '#eab308';
             else if (window.botState.currentMode.indexOf('MORTO') >= 0) modeText.style.color = '#f43f5e';
