@@ -6,6 +6,9 @@ from .encoder import ACTION_SIZE, NUM_CHANNELS, decode_move, encode_board, encod
 from .model import ChessPolicyValueNet
 from .trainer import PolicyDistillationTrainer
 from .rl_trainer import RLChessTrainer
+from .mcts import MCTSNode, NeuralMCTS
+from .batched_env import BatchedChessEnv
+from .batched_rl_trainer import BatchedRLTrainer
 
 __all__ = [
     "NeuralChessBot",
@@ -13,6 +16,10 @@ __all__ = [
     "ChessOpeningDataset",
     "PolicyDistillationTrainer",
     "RLChessTrainer",
+    "MCTSNode",
+    "NeuralMCTS",
+    "BatchedChessEnv",
+    "BatchedRLTrainer",
     "extract_polyglot_data",
     "encode_board",
     "encode_move",

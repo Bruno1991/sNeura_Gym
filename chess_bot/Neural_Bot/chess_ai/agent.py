@@ -13,16 +13,20 @@ import torch.nn.functional as F
 
 from .encoder import decode_move, encode_board, encode_move, get_legal_action_mask
 from .model import ChessPolicyValueNet
+from .mcts import NeuralMCTS
 
 
 class NeuralChessBot:
-    """Agente de inferência neural para xadrez."""
+    """Agente de inferência neural para xadrez com suporte a MCTS Tree Search."""
 
     def __init__(
         self,
         weights_path: Optional[str | Path] = None,
         device: Optional[str] = None,
         fallback_book_path: Optional[str | Path] = None,
+        use_mcts: bool = False,
+        mcts_sims: int = 50,
+        mcts_c_puct: float = 2.0,
     ):
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -32,6 +36,10 @@ class NeuralChessBot:
         self.model: Optional[ChessPolicyValueNet] = None
         self.weights_path = Path(weights_path) if weights_path else None
         self.fallback_book_path = Path(fallback_book_path) if fallback_book_path else None
+        self.use_mcts = use_mcts
+        self.mcts_sims = mcts_sims
+        self.mcts_c_puct = mcts_c_puct
+        self.mcts: Optional[NeuralMCTS] = None
 
         self._load_network()
 
@@ -41,11 +49,14 @@ class NeuralChessBot:
             try:
                 self.model = ChessPolicyValueNet.load_weights(self.weights_path, device=str(self.device))
                 print(f"[*] Pesos neurais carregados com sucesso de: {self.weights_path.name}")
+                self.mcts = NeuralMCTS(self.model, device=self.device, c_puct=self.mcts_c_puct)
             except Exception as e:
                 print(f"[!] Erro ao carregar pesos neurais de {self.weights_path}: {e}")
                 self.model = None
+                self.mcts = None
         else:
             self.model = None
+            self.mcts = None
 
     def is_ready(self) -> bool:
         """Verifica se o modelo neural está carregado e pronto para inferência."""
@@ -79,13 +90,17 @@ class NeuralChessBot:
         self,
         board: chess.Board,
         temperature: float = 0.0,
+        use_mcts: Optional[bool] = None,
+        num_simulations: Optional[int] = None,
     ) -> Tuple[Optional[chess.Move], Dict[str, Any]]:
-        """Seleciona o melhor lance segundo a rede neural.
+        """Seleciona o melhor lance segundo a rede neural ou busca MCTS.
         
         Args:
             board: Estado do tabuleiro.
-            temperature: Se 0.0, escolhe o lance com maior probabilidade (Greedy Argmax).
-                         Se > 0.0, sorteia proporcionalmente à probabilidade ajustada por temperatura.
+            temperature: Se 0.0, escolhe o lance com maior probabilidade/visitas (Greedy Argmax).
+                         Se > 0.0, sorteia proporcionalmente à distribuição ajustada por temperatura.
+            use_mcts: Se True, utiliza o Motor de Busca Neural (Tree Search). Se None, usa self.use_mcts.
+            num_simulations: Número de simulações para a busca em árvore. Se None, usa self.mcts_sims.
         """
         legal_moves = list(board.legal_moves)
         if not legal_moves:
@@ -95,6 +110,20 @@ class NeuralChessBot:
             # Fallback se a rede ainda não tiver pesos salvos
             return legal_moves[0], {"source": "fallback_uninitialized"}
 
+        # Verificar se deve usar busca em árvore MCTS
+        should_mcts = self.use_mcts if use_mcts is None else use_mcts
+        if should_mcts:
+            if self.mcts is None:
+                self.mcts = NeuralMCTS(self.model, device=self.device, c_puct=self.mcts_c_puct)
+            sims = num_simulations or self.mcts_sims
+            move, stats = self.mcts.search(board, num_simulations=sims, temperature=temperature)
+            if move is not None:
+                stats["san"] = board.san(move)
+                stats["value"] = stats.get("root_value", 0.0)
+                stats["probability"] = stats.get("best_move_visits", 1) / max(1, sims)
+                return move, stats
+
+        # Inferência direta via política neural (1-pass)
         move_probs, eval_val = self.evaluate_position(board)
         if not move_probs:
             return legal_moves[0], {"source": "fallback_empty"}

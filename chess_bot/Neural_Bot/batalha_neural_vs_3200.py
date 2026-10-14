@@ -1,7 +1,7 @@
-"""Confronto Direto entre Bots: Neural_Bot (ResNet) vs Maximum 3200 (Scripted_Bot).
+"""Confronto Direto entre Bots: Neural_Bot (ResNet + MCTS) vs Maximum 3200 (Scripted_Bot).
 
 Executa uma partida local completa entre o agente neural e o bot de 3200 Elo,
-exibindo o tabuleiro, probabilidades, fontes de decisão e gerando o PGN da partida.
+exibindo o tabuleiro, probabilidades, variantes de cálculo (PV) e gerando o PGN da partida.
 100% autônomo, não requer dependências externas além do ambiente local.
 """
 
@@ -36,10 +36,16 @@ def run_bot_battle(
     delay_between_moves: float = 1.0,
     max_fullmoves: int = 60,
     temperature: float = 0.0,
+    use_mcts: bool = False,
+    mcts_sims: int = 50,
 ):
     """Executa a partida completa entre o Neural_Bot e o Bot de 3200 Elo."""
     weights_path = current_dir / "checkpoints" / "chess_policy_weights.pt"
-    neural_agent = NeuralChessBot(weights_path=weights_path)
+    neural_agent = NeuralChessBot(
+        weights_path=weights_path,
+        use_mcts=use_mcts,
+        mcts_sims=mcts_sims,
+    )
 
     if not neural_agent.is_ready():
         print(f"[!] Erro: Pesos neurais não encontrados em {weights_path}.")
@@ -51,8 +57,9 @@ def run_bot_battle(
     pgn_game = chess.pgn.Game()
     pgn_node = pgn_game
 
-    white_name = "Neural_Bot (ResNet)" if neural_is_white else "Maximum (3200 Elo)"
-    black_name = "Maximum (3200 Elo)" if neural_is_white else "Neural_Bot (ResNet)"
+    neural_tag = f"Neural_Bot (ResNet + MCTS {mcts_sims})" if use_mcts else "Neural_Bot (ResNet)"
+    white_name = neural_tag if neural_is_white else "Maximum (3200 Elo)"
+    black_name = "Maximum (3200 Elo)" if neural_is_white else neural_tag
 
     pgn_game.headers["Event"] = "Duelo Local s_Neura_Gym"
     pgn_game.headers["White"] = white_name
@@ -64,6 +71,7 @@ def run_bot_battle(
     print("=" * 70)
     print(f" Brancas: {white_name}")
     print(f" Pretas : {black_name}")
+    print(f" Modo Neural: {'MCTS Tree Search (' + str(mcts_sims) + ' sims)' if use_mcts else 'Política Neural Direta'}")
     print(f" Delay entre lances: {delay_between_moves:.1f}s")
     print("=" * 70 + "\n")
 
@@ -77,12 +85,20 @@ def run_bot_battle(
 
         t0 = time.time()
         if is_neural_turn:
-            print(f"[*] {player_title} calculando probabilidades na rede...")
-            move, info = neural_agent.get_best_move(board, temperature=temperature)
+            print(f"[*] {player_title} calculando com {'MCTS Tree Search' if use_mcts else 'Rede Neural'}...")
+            move, info = neural_agent.get_best_move(
+                board,
+                temperature=temperature,
+                use_mcts=use_mcts,
+                num_simulations=mcts_sims,
+            )
             elapsed = time.time() - t0
             prob_percent = info.get("probability", 0.0) * 100.0
             val = info.get("value", 0.0)
-            tag = f"[REDE Confiança: {prob_percent:.1f}% | Eval: {val:+.2f}]"
+            if use_mcts:
+                tag = f"[MCTS {info.get('simulations', mcts_sims)} sims | Prof: {info.get('depth_reached', 1)} | Eval: {val:+.2f}]"
+            else:
+                tag = f"[REDE Confiança: {prob_percent:.1f}% | Eval: {val:+.2f}]"
         else:
             print(f"[*] {player_title} consultando livro e motor...")
             move, info = bot_3200.get_best_move(board, max_depth=3)
@@ -100,6 +116,8 @@ def run_bot_battle(
 
         san_move = board.san(move)
         print(f"[*] {player_title} jogou: {san_move:<7} {tag} ({elapsed:.2f}s)")
+        if is_neural_turn and use_mcts and "principal_variation" in info:
+            print(f"    Variante calculada (PV): {' -> '.join(info['principal_variation'])}")
 
         pgn_node = pgn_node.add_variation(move)
         board.push(move)
@@ -149,6 +167,8 @@ def main():
     parser.add_argument("--delay", type=float, default=1.0, help="Pausa em segundos entre cada lance para acompanhamento (padrão: 1.0)")
     parser.add_argument("--max-moves", type=int, default=60, help="Limite máximo de lances completos (padrão: 60)")
     parser.add_argument("--temp", type=float, default=0.0, help="Temperatura do bot neural (0.0 = mais preciso)")
+    parser.add_argument("--mcts", action="store_true", help="Ativa o Motor de Busca Neural (Neural MCTS / Tree Search)")
+    parser.add_argument("--mcts-sims", type=int, default=50, help="Número de simulações MCTS por lance (padrão: 50)")
 
     args = parser.parse_args()
 
@@ -158,6 +178,8 @@ def main():
         delay_between_moves=args.delay,
         max_fullmoves=args.max_moves,
         temperature=args.temp,
+        use_mcts=args.mcts,
+        mcts_sims=args.mcts_sims,
     )
 
 

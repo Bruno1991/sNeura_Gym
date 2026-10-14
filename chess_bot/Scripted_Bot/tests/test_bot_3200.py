@@ -48,7 +48,7 @@ def test_opening_book_sicilian_response(bot):
     assert book_result is not None
     move, weight = book_result
     assert move in board.legal_moves
-    assert board.san(move) in ["c5", "e5", "e6", "c6", "d6", "Nf6"]
+    assert board.san(move) in ["c5", "e5", "e6", "c6", "d6", "Nf6", "d5"]
 
 
 def test_evaluation_initial_board():

@@ -97,15 +97,19 @@ def play_interactive_game(
     human_delay: bool = True,
     delay_min: float = 1.0,
     delay_max: float = 3.2,
+    use_mcts: bool = False,
+    mcts_sims: int = 50,
 ):
     """Executa partida interativa no terminal contra o bot neural."""
     board = chess.Board()
     player_is_white = player_color == chess.WHITE
 
+    mode_str = f"MCTS ({mcts_sims} sims)" if use_mcts else "Política Neural Direta"
     print("\n" + "=" * 65)
     print("  PARTIDA CONTRA O AGENTE NEURAL (CHESS POLICY-VALUE RESNET)")
     print("=" * 65)
     print(" Pesos treinados a partir do livro de Grandes Mestres (3200 Elo)")
+    print(f" Modo de Busca: {mode_str}")
     tempo_modo = f"Ativado ({delay_min:.1f}s a {delay_max:.1f}s)" if human_delay else "Desativado (Instantâneo)"
     print(f" Delay de Pensamento Humano: {tempo_modo}")
     print("=" * 65 + "\n")
@@ -142,7 +146,12 @@ def play_interactive_game(
         else:
             # Bot Neural
             t0 = time.time()
-            best_move, info = agent.get_best_move(board, temperature=temperature)
+            best_move, info = agent.get_best_move(
+                board,
+                temperature=temperature,
+                use_mcts=use_mcts,
+                num_simulations=mcts_sims,
+            )
             infer_ms = (time.time() - t0) * 1000.0
 
             if not best_move:
@@ -162,7 +171,13 @@ def play_interactive_game(
             val_eval = info.get("value", 0.0)
 
             tempo_str = f"{delay_spent:.2f}s" if human_delay else f"{infer_ms:.1f}ms"
-            print(f"[*] Neural_Bot jogou: {san_move} (Confiança: {prob_percent:.1f}% | Eval: {val_eval:+.2f} | Pensou: {tempo_str})")
+            source_tag = f"MCTS ({info.get('simulations', mcts_sims)} sims | Prof: {info.get('depth_reached', 1)})" if use_mcts else "Rede Direta"
+            print(f"[*] Neural_Bot [{source_tag}] jogou: {san_move} (Confiança: {prob_percent:.1f}% | Eval: {val_eval:+.2f} | Pensou: {tempo_str})")
+
+            # Exibir Linha Principal (PV)
+            pv = info.get("principal_variation", [])
+            if pv:
+                print(f"    Variante calculada (PV): {' -> '.join(pv)}")
 
             top_candidates = info.get("top_candidates", [])
             if top_candidates:
@@ -182,7 +197,7 @@ def play_interactive_game(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Neural Chess Bot (ResNet Policy-Value)")
+    parser = argparse.ArgumentParser(description="Neural Chess Bot (ResNet Policy-Value + MCTS)")
     parser.add_argument("--play", action="store_true", help="Inicia partida interativa contra o modelo neural")
     parser.add_argument("--color", choices=["white", "black"], default="white", help="Cor do jogador humano")
     parser.add_argument("--temp", type=float, default=0.0, help="Temperatura de amostragem (0.0 = argmax estrito)")
@@ -190,13 +205,19 @@ def main():
     parser.add_argument("--instant", action="store_true", help="Desativa o delay humano (resposta em milissegundos)")
     parser.add_argument("--delay-min", type=float, default=1.0, help="Tempo mínimo de pensamento em segundos (padrão: 1.0)")
     parser.add_argument("--delay-max", type=float, default=3.2, help="Tempo máximo de pensamento em segundos (padrão: 3.2)")
+    parser.add_argument("--mcts", action="store_true", help="Ativa o Motor de Busca Neural (Neural MCTS / Tree Search)")
+    parser.add_argument("--mcts-sims", type=int, default=50, help="Número de simulações MCTS por lance (padrão: 50)")
 
     args = parser.parse_args()
 
     default_weights = current_dir / "checkpoints" / "chess_policy_weights.pt"
     weights_path = Path(args.weights) if args.weights else default_weights
 
-    agent = NeuralChessBot(weights_path=weights_path)
+    agent = NeuralChessBot(
+        weights_path=weights_path,
+        use_mcts=args.mcts,
+        mcts_sims=args.mcts_sims,
+    )
     if not agent.is_ready():
         print(f"[!] Aviso: Pesos não encontrados em {weights_path}.")
         print("    Execute o treinamento primeiro via:")
@@ -211,6 +232,8 @@ def main():
         human_delay=not args.instant,
         delay_min=args.delay_min,
         delay_max=args.delay_max,
+        use_mcts=args.mcts,
+        mcts_sims=args.mcts_sims,
     )
 
 
