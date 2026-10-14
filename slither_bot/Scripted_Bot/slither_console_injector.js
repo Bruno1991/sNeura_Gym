@@ -230,7 +230,7 @@
 
         // --- 2. EVITAÇÃO DE OBSTÁCULOS NATIVA (gaim.Main linhas 11040-11099) ---
         // Se a cobra estiver em boost, o raio de detecção dobra (bidt *= 2, l. 11041)
-        var bidt = window.botState.isBoosting 
+        var bidt = window.botState.isBoosting
             ? (window.BOT_CONFIG.COWARDICE_BASE * window.BOT_CONFIG.COWARDICE_BOOST_MULT)
             : window.BOT_CONFIG.COWARDICE_BASE;
         var avpo = null;
@@ -397,7 +397,7 @@
         // Decisão de Turbo Inteligente:
         // Só acelera para comer se a presa estiver perto (< 280px) e com massa segura
         var isPrey = !!(window.botState.targetFood && (window.botState.targetFood.sp || window.botState.targetFood.rsp > 1));
-        var distToFood = window.botState.targetFood 
+        var distToFood = window.botState.targetFood
             ? Math.sqrt(Math.pow(myX - window.botState.targetFood.xx, 2) + Math.pow(myY - window.botState.targetFood.yy, 2))
             : 9999;
         var boostPrey = (isPrey && distToFood < 280 && myScore >= window.BOT_CONFIG.MIN_BOOST_MASS);
