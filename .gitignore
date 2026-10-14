@@ -11,4 +11,5 @@ node_modules/
 bin/
 polyglot_dataset.pt
 *.dataset.pt
+*.zip
 
