@@ -238,11 +238,41 @@ def render_board(board: chess.Board, player_is_white: bool = True) -> str:
     return "\n".join(lines)
 
 
+def simulate_human_delay(
+    info: dict,
+    min_delay: float = 0.9,
+    max_delay: float = 2.4,
+    enabled: bool = True,
+    bot_name: str = "Maximum",
+) -> float:
+    """Simula o tempo de reflexão de um grande mestre humano."""
+    if not enabled:
+        return 0.0
+
+    is_book = info.get("source") == "book"
+    if is_book:
+        # Lances de livro são jogados com mais rapidez pelo mestre (0.8s - 1.5s)
+        base = random.uniform(min_delay, min_delay + 0.6)
+    else:
+        # Fora do livro, pondera mais tempo
+        base = random.uniform(min_delay + 0.5, max_delay)
+
+    start = time.time()
+    print(f"\n[*] {bot_name} está pensando", end="", flush=True)
+    while (time.time() - start) < base:
+        time.sleep(0.3)
+        print(".", end="", flush=True)
+
+    print("\r" + " " * 55 + "\r", end="", flush=True)
+    return time.time() - start
+
+
 def play_interactive_game(
     bot: ChessBot3200,
     player_color: chess.Color = chess.WHITE,
     max_depth: int = 4,
     max_time_seconds: float = 2.5,
+    human_delay: bool = True,
 ):
     """Executa partida interativa no terminal contra o Bot de 3200 Elo."""
     board = chess.Board()
@@ -251,6 +281,8 @@ def play_interactive_game(
     print("\n" + "=" * 65)
     print(f"  PARTIDA CONTRA: {bot.name} (Rating {bot.rating} Elo)")
     print("=" * 65)
+    tempo_status = "Ativado (0.9s a 2.4s)" if human_delay else "Desativado"
+    print(f" Delay de Pensamento Humano: {tempo_status}")
     if "greeting" in bot.phrases:
         print(f"\n{bot.name}: \"{bot.phrases['greeting']}\"\n")
 
@@ -286,18 +318,25 @@ def play_interactive_game(
 
         else:
             # Vez do Bot 3200
-            print(f"\n[*] {bot.name} está calculando...")
             t0 = time.time()
             best_move, info = bot.get_best_move(
                 board,
                 max_depth=max_depth,
                 max_time_seconds=max_time_seconds,
             )
-            elapsed = time.time() - t0
+            calc_elapsed = time.time() - t0
 
             if not best_move:
                 print("[!] Bot sem lances legais.")
                 break
+
+            # Simulação do tempo de reflexão humano
+            delay_spent = simulate_human_delay(
+                info,
+                enabled=human_delay,
+                bot_name=bot.name,
+            )
+            total_elapsed = calc_elapsed + delay_spent
 
             san_move = board.san(best_move)
             board.push(best_move)
@@ -306,7 +345,8 @@ def play_interactive_game(
             source_tag = "[LIVRO balanced.bin]" if info.get("source") == "book" else f"[MOTOR d={info.get('depth', '?')}]"
             score_cp = info.get("score_cp")
             score_str = f" | Eval: {score_cp/100:+.2f}" if score_cp is not None else ""
-            print(f"[*] {bot.name} jogou: {san_move} ({source_tag}{score_str} em {elapsed:.2f}s)")
+            tempo_exib = f"{total_elapsed:.2f}s" if human_delay else f"{calc_elapsed:.2f}s"
+            print(f"[*] {bot.name} jogou: {san_move} ({source_tag}{score_str} em {tempo_exib})")
 
             # Frases interativas
             if board.is_check() and "givingCheck" in bot.phrases:
@@ -350,6 +390,7 @@ def main():
     parser.add_argument("--depth", type=int, default=4, help="Profundidade máxima de busca (padrão: 4)")
     parser.add_argument("--time", type=float, default=2.5, help="Tempo limite de cálculo por lance em segundos (padrão: 2.5)")
     parser.add_argument("--uci", action="store_true", help="Força uso de motor UCI externo se disponível")
+    parser.add_argument("--instant", action="store_true", help="Desativa o delay humano (resposta instantânea)")
 
     args = parser.parse_args()
 
@@ -371,6 +412,7 @@ def main():
         player_color=color,
         max_depth=args.depth,
         max_time_seconds=args.time,
+        human_delay=not args.instant,
     )
 
 

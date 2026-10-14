@@ -56,10 +56,47 @@ def render_board(board: chess.Board, player_is_white: bool = True) -> str:
     return "\n".join(lines)
 
 
+import random
+
+
+
+def simulate_human_delay(
+    info: dict,
+    min_delay: float = 1.0,
+    max_delay: float = 3.2,
+    enabled: bool = True,
+) -> float:
+    """Simula o tempo de reflexão de um jogador humano com base na certeza da rede."""
+    if not enabled:
+        return 0.0
+
+    prob = info.get("probability", 0.5)
+    # Quanto menor a certeza (probabilidade baixa), mais tempo o humano pondera
+    uncertainty = 1.0 - min(1.0, max(0.0, prob))
+    base_delay = min_delay + uncertainty * (max_delay - min_delay)
+
+    # Jitter natural aleatório (+/- 25%)
+    jitter = random.uniform(-0.25, 0.35)
+    target_time = max(min_delay * 0.75, base_delay + jitter)
+
+    start = time.time()
+    print("\n[*] Neural_Bot está pensando", end="", flush=True)
+    while (time.time() - start) < target_time:
+        time.sleep(0.3)
+        print(".", end="", flush=True)
+
+    # Limpar a linha de 'pensando...' para exibição limpa
+    print("\r" + " " * 55 + "\r", end="", flush=True)
+    return time.time() - start
+
+
 def play_interactive_game(
     agent: NeuralChessBot,
     player_color: chess.Color = chess.WHITE,
     temperature: float = 0.0,
+    human_delay: bool = True,
+    delay_min: float = 1.0,
+    delay_max: float = 3.2,
 ):
     """Executa partida interativa no terminal contra o bot neural."""
     board = chess.Board()
@@ -69,6 +106,8 @@ def play_interactive_game(
     print("  PARTIDA CONTRA O AGENTE NEURAL (CHESS POLICY-VALUE RESNET)")
     print("=" * 65)
     print(" Pesos treinados a partir do livro de Grandes Mestres (3200 Elo)")
+    tempo_modo = f"Ativado ({delay_min:.1f}s a {delay_max:.1f}s)" if human_delay else "Desativado (Instantâneo)"
+    print(f" Delay de Pensamento Humano: {tempo_modo}")
     print("=" * 65 + "\n")
 
     move_count = 1
@@ -102,25 +141,33 @@ def play_interactive_game(
 
         else:
             # Bot Neural
-            print("\n[*] Neural_Bot está inferindo probabilidades...")
             t0 = time.time()
             best_move, info = agent.get_best_move(board, temperature=temperature)
-            elapsed = time.time() - t0
+            infer_ms = (time.time() - t0) * 1000.0
 
             if not best_move:
                 print("[!] Sem lances legais.")
                 break
 
+            # Simulação do tempo de reflexão humano
+            delay_spent = simulate_human_delay(
+                info,
+                min_delay=delay_min,
+                max_delay=delay_max,
+                enabled=human_delay,
+            )
+
             san_move = board.san(best_move)
             prob_percent = info.get("probability", 0.0) * 100.0
             val_eval = info.get("value", 0.0)
 
-            print(f"[*] Neural_Bot jogou: {san_move} (Confiança: {prob_percent:.1f}% | Eval Neural: {val_eval:+.2f} em {elapsed*1000:.1f}ms)")
+            tempo_str = f"{delay_spent:.2f}s" if human_delay else f"{infer_ms:.1f}ms"
+            print(f"[*] Neural_Bot jogou: {san_move} (Confiança: {prob_percent:.1f}% | Eval: {val_eval:+.2f} | Pensou: {tempo_str})")
 
             top_candidates = info.get("top_candidates", [])
             if top_candidates:
                 cands_str = ", ".join([f"{c['san']} ({c['prob']*100:.1f}%)" for c in top_candidates])
-                print(f"    Top lances avaliados pela rede: [{cands_str}]")
+                print(f"    Top variantes consideradas: [{cands_str}]")
 
             board.push(best_move)
 
@@ -140,6 +187,9 @@ def main():
     parser.add_argument("--color", choices=["white", "black"], default="white", help="Cor do jogador humano")
     parser.add_argument("--temp", type=float, default=0.0, help="Temperatura de amostragem (0.0 = argmax estrito)")
     parser.add_argument("--weights", type=str, default=None, help="Caminho personalizado para os pesos .pt")
+    parser.add_argument("--instant", action="store_true", help="Desativa o delay humano (resposta em milissegundos)")
+    parser.add_argument("--delay-min", type=float, default=1.0, help="Tempo mínimo de pensamento em segundos (padrão: 1.0)")
+    parser.add_argument("--delay-max", type=float, default=3.2, help="Tempo máximo de pensamento em segundos (padrão: 3.2)")
 
     args = parser.parse_args()
 
@@ -154,8 +204,16 @@ def main():
         sys.exit(1)
 
     color = chess.WHITE if args.color == "white" else chess.BLACK
-    play_interactive_game(agent, player_color=color, temperature=args.temp)
+    play_interactive_game(
+        agent,
+        player_color=color,
+        temperature=args.temp,
+        human_delay=not args.instant,
+        delay_min=args.delay_min,
+        delay_max=args.delay_max,
+    )
 
 
 if __name__ == "__main__":
     main()
+
