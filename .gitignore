@@ -7,3 +7,6 @@ venv/
 *.log
 node_modules/
 *.onnx
+.pytest_cache/
+bin/
+

@@ -1,0 +1,28 @@
+{
+  "id": "9ed5fe4e-8a5e-11ea-a40e-67edad6464bf",
+  "name": "Maximum",
+  "username": "Komodo25",
+  "rating": 3200,
+  "ratingText": "Grandmaster Engine",
+  "classification": "engine",
+  "groupName": "Engine",
+  "komodoSkillLevel": 25,
+  "personality": "PERSONALITY_UNSPECIFIED_DEFAULT",
+  "book": "balanced",
+  "bookFile": "balanced.bin",
+  "countryCode": "us",
+  "premium": false,
+  "canPlay": true,
+  "description": "O bot mais forte do aplicativo Chess.com com rating máximo de 3200 Elo. Utiliza o livro de abertura oficial balanced.bin e avaliação de profundidade máxima do motor Komodo.",
+  "imageUrl": "https://images.chesscomfiles.com/uploads/v1/user/87283122.739512fc.384x384o.5302751dec63.png",
+  "phraseList": {
+    "greeting": "Prepare-se para enfrentar o nível máximo da engine (Rating 3200).",
+    "won": "Partida concluída. O cálculo tático e posicional prevaleceu.",
+    "lost": "Excelente partida! Uma vitória impressionante contra uma avaliação de 3200.",
+    "givingCheck": "Xeque. Suas opções defensivas estão sendo calculadas.",
+    "queenCaptured": "A dama caiu, mas a avaliação posicional continua ativa.",
+    "capturingQueen": "Dama capturada com precisão posicional.",
+    "blunder": "Essa imprecisão alterou drasticamente a avaliação.",
+    "drawOffer": "A posição está matematicamente equilibrada para empate."
+  }
+}
