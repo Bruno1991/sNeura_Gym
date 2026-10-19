@@ -87,6 +87,15 @@ class GymArenaApp {
     this.startClock();
     this.initWebSocket();
     this.loadBotsCatalog();
+    this.loadInitialState();
+
+    window.addEventListener('resize', () => {
+      if (this.isDesktop()) {
+        this.catalogScreen.classList.remove('hidden');
+        this.matchScreen.classList.remove('hidden');
+        this.btnBackToCatalog.classList.add('hidden');
+      }
+    });
   }
 
   initElements() {
@@ -471,28 +480,63 @@ class GymArenaApp {
   }
 
   // ============================================================================
-  // TRANSIÇÕES DE TELA E PARTIDA
+  // TRANSIÇÕES DE TELA E PARTIDA (RESPONSIVO DESKTOP & MOBILE)
   // ============================================================================
+  isDesktop() {
+    return window.innerWidth >= 960;
+  }
+
+  async loadInitialState() {
+    try {
+      const res = await fetch('/api/match/state');
+      if (res.ok) {
+        const data = await res.json();
+        this.gameState = data;
+        this.setupMatchLayout();
+        this.renderBoard();
+        this.updateHUD();
+        if (this.isDesktop()) {
+          this.showMatchScreen();
+        }
+      }
+    } catch (e) {
+      console.warn("Erro ao buscar estado inicial:", e);
+    }
+  }
+
   showCatalogScreen() {
     this.matchSessionId++;
     this.stopAutoPlay();
     this.isProcessingMove = false;
     this.selectedSquare = null;
     this.legalMovesForSelected = [];
-    this.matchScreen.classList.add('hidden');
-    this.catalogScreen.classList.remove('hidden');
-    this.btnBackToCatalog.classList.add('hidden');
-    this.headerMainTitle.textContent = "Computador";
+
+    if (!this.isDesktop()) {
+      this.matchScreen.classList.add('hidden');
+      this.catalogScreen.classList.remove('hidden');
+      this.btnBackToCatalog.classList.add('hidden');
+    } else {
+      this.catalogScreen.classList.remove('hidden');
+      this.matchScreen.classList.remove('hidden');
+      this.btnBackToCatalog.classList.add('hidden');
+    }
+    this.headerMainTitle.textContent = "GymArena";
     this.headerSubBadge.textContent = `${this.bots.length} Bots`;
     this.setActiveNavTab(this.tabNavPlay);
   }
 
   showMatchScreen() {
-    this.catalogScreen.classList.add('hidden');
-    this.matchScreen.classList.remove('hidden');
-    this.btnBackToCatalog.classList.remove('hidden');
-    this.headerMainTitle.textContent = "Partida";
-    this.headerSubBadge.textContent = this.selectedBot ? this.selectedBot.name : "GymArena";
+    if (!this.isDesktop()) {
+      this.catalogScreen.classList.add('hidden');
+      this.matchScreen.classList.remove('hidden');
+      this.btnBackToCatalog.classList.remove('hidden');
+    } else {
+      this.catalogScreen.classList.remove('hidden');
+      this.matchScreen.classList.remove('hidden');
+      this.btnBackToCatalog.classList.add('hidden');
+    }
+    this.headerMainTitle.textContent = "GymArena";
+    this.headerSubBadge.textContent = this.selectedBot ? this.selectedBot.name : "Partida";
   }
 
   async startMatch() {

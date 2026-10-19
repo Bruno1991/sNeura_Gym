@@ -2,1241 +2,1241 @@
   "num_workers": 64,
   "use_amp": true,
   "max_hours": null,
-  "elapsed_hours": 0.989,
-  "total_games": 4251,
-  "neural_wins": 3265,
-  "engine_wins": 668,
-  "draws": 318,
-  "final_win_rate": 76.80545753940248,
-  "draw_rate": 7.480592801693719,
-  "total_time_seconds": 3559.8052246570587,
+  "elapsed_hours": 2.479,
+  "total_games": 10000,
+  "neural_wins": 7782,
+  "engine_wins": 1552,
+  "draws": 666,
+  "final_win_rate": 77.82,
+  "draw_rate": 6.660000000000001,
+  "total_time_seconds": 8923.64880824089,
   "stats_by_tier": {
     "Iniciante (1-900)": {
-      "wins": 617,
-      "losses": 199,
-      "draws": 92
+      "wins": 1476,
+      "losses": 457,
+      "draws": 193
     },
     "Intermedi\u00e1rio (900-1500)": {
-      "wins": 803,
-      "losses": 245,
-      "draws": 72
+      "wins": 1859,
+      "losses": 606,
+      "draws": 186
     },
     "Avan\u00e7ado (1500-2100)": {
-      "wins": 725,
-      "losses": 123,
-      "draws": 64
+      "wins": 1687,
+      "losses": 284,
+      "draws": 118
     },
     "Mestre (2100-2700)": {
-      "wins": 797,
-      "losses": 74,
-      "draws": 45
+      "wins": 1949,
+      "losses": 156,
+      "draws": 73
     },
     "Elite (2700-3200)": {
-      "wins": 323,
-      "losses": 27,
-      "draws": 45
+      "wins": 811,
+      "losses": 49,
+      "draws": 96
     }
   },
   "stats_by_bot": {
     "Hans": {
       "rating": 1000,
-      "wins": 6,
-      "losses": 1,
-      "draws": 0
+      "wins": 19,
+      "losses": 9,
+      "draws": 1
     },
     "Wesley So": {
       "rating": 2820,
-      "wins": 12,
+      "wins": 36,
       "losses": 1,
-      "draws": 2
+      "draws": 7
     },
     "Master": {
       "rating": 2400,
-      "wins": 35,
-      "losses": 2,
-      "draws": 0
+      "wins": 71,
+      "losses": 6,
+      "draws": 2
     },
     "Luk.AI": {
       "rating": 2500,
-      "wins": 16,
-      "losses": 1,
+      "wins": 36,
+      "losses": 4,
       "draws": 1
     },
     "Level 24": {
       "rating": 2820,
-      "wins": 19,
-      "losses": 2,
-      "draws": 3
+      "wins": 37,
+      "losses": 3,
+      "draws": 8
     },
     "Charles": {
       "rating": 2000,
-      "wins": 16,
-      "losses": 4,
-      "draws": 0
+      "wins": 38,
+      "losses": 5,
+      "draws": 2
     },
     "Mack Hollins": {
       "rating": 1400,
-      "wins": 12,
-      "losses": 3,
-      "draws": 0
+      "wins": 29,
+      "losses": 7,
+      "draws": 2
     },
     "Abdusattorov": {
       "rating": 2660,
-      "wins": 14,
-      "losses": 0,
-      "draws": 1
+      "wins": 30,
+      "losses": 4,
+      "draws": 2
     },
     "Grandmaster": {
       "rating": 2600,
-      "wins": 35,
-      "losses": 1,
-      "draws": 2
+      "wins": 93,
+      "losses": 4,
+      "draws": 3
     },
     "Hafu": {
       "rating": 1500,
-      "wins": 21,
-      "losses": 4,
-      "draws": 1
+      "wins": 41,
+      "losses": 9,
+      "draws": 4
     },
     "Aronian": {
       "rating": 2830,
-      "wins": 16,
+      "wins": 41,
       "losses": 2,
-      "draws": 1
+      "draws": 2
     },
     "GothamChess": {
       "rating": 2500,
-      "wins": 13,
-      "losses": 3,
-      "draws": 0
-    },
-    "Janjay": {
-      "rating": 700,
-      "wins": 16,
-      "losses": 6,
-      "draws": 1
-    },
-    "Martinfoot": {
-      "rating": 250,
-      "wins": 20,
-      "losses": 3,
-      "draws": 2
-    },
-    "Elani": {
-      "rating": 400,
-      "wins": 14,
+      "wins": 37,
       "losses": 5,
       "draws": 1
     },
+    "Janjay": {
+      "rating": 700,
+      "wins": 30,
+      "losses": 14,
+      "draws": 2
+    },
+    "Martinfoot": {
+      "rating": 250,
+      "wins": 44,
+      "losses": 7,
+      "draws": 3
+    },
+    "Elani": {
+      "rating": 400,
+      "wins": 25,
+      "losses": 10,
+      "draws": 4
+    },
     "Level 16": {
       "rating": 2000,
-      "wins": 15,
-      "losses": 1,
+      "wins": 38,
+      "losses": 3,
       "draws": 2
     },
     "Capablanca": {
       "rating": 2725,
-      "wins": 19,
-      "losses": 2,
-      "draws": 3
+      "wins": 38,
+      "losses": 3,
+      "draws": 5
     },
     "Expert": {
       "rating": 2000,
-      "wins": 74,
-      "losses": 12,
-      "draws": 4
+      "wins": 159,
+      "losses": 30,
+      "draws": 7
     },
     "Pia Cramling": {
       "rating": 2550,
-      "wins": 20,
+      "wins": 54,
       "losses": 1,
-      "draws": 0
+      "draws": 3
     },
     "Anna Muzychuk": {
       "rating": 2606,
-      "wins": 26,
-      "losses": 2,
-      "draws": 1
+      "wins": 55,
+      "losses": 3,
+      "draws": 2
     },
     "Anna Cramling": {
       "rating": 2175,
-      "wins": 18,
+      "wins": 47,
       "losses": 2,
       "draws": 2
     },
     "Rey Enigma": {
       "rating": 2500,
-      "wins": 20,
-      "losses": 2,
-      "draws": 3
+      "wins": 43,
+      "losses": 5,
+      "draws": 4
     },
     "Level 2": {
       "rating": 250,
-      "wins": 14,
-      "losses": 2,
-      "draws": 1
+      "wins": 41,
+      "losses": 7,
+      "draws": 2
     },
     "Beginner": {
       "rating": 250,
-      "wins": 80,
-      "losses": 18,
-      "draws": 9
+      "wins": 179,
+      "losses": 32,
+      "draws": 19
     },
     "Tomas": {
       "rating": 1200,
-      "wins": 12,
-      "losses": 7,
-      "draws": 1
+      "wins": 26,
+      "losses": 16,
+      "draws": 3
     },
     "xQc": {
       "rating": 1200,
-      "wins": 7,
-      "losses": 5,
-      "draws": 1
+      "wins": 27,
+      "losses": 13,
+      "draws": 3
     },
     "MrBeast": {
       "rating": 1100,
-      "wins": 23,
-      "losses": 3,
-      "draws": 1
+      "wins": 40,
+      "losses": 9,
+      "draws": 5
     },
     "Juan": {
       "rating": 400,
-      "wins": 21,
-      "losses": 5,
-      "draws": 2
-    },
-    "Francis": {
-      "rating": 2300,
-      "wins": 18,
-      "losses": 2,
-      "draws": 0
-    },
-    "Super Grandmaster": {
-      "rating": 2900,
-      "wins": 24,
-      "losses": 1,
-      "draws": 1
-    },
-    "Arjun": {
-      "rating": 2300,
-      "wins": 21,
-      "losses": 4,
-      "draws": 2
-    },
-    "Gordon Hayward": {
-      "rating": 1350,
-      "wins": 15,
-      "losses": 2,
-      "draws": 1
-    },
-    "Milica": {
-      "rating": 550,
-      "wins": 9,
+      "wins": 46,
       "losses": 7,
       "draws": 3
     },
+    "Francis": {
+      "rating": 2300,
+      "wins": 46,
+      "losses": 3,
+      "draws": 1
+    },
+    "Super Grandmaster": {
+      "rating": 2900,
+      "wins": 48,
+      "losses": 3,
+      "draws": 6
+    },
+    "Arjun": {
+      "rating": 2300,
+      "wins": 44,
+      "losses": 7,
+      "draws": 7
+    },
+    "Gordon Hayward": {
+      "rating": 1350,
+      "wins": 35,
+      "losses": 5,
+      "draws": 4
+    },
+    "Milica": {
+      "rating": 550,
+      "wins": 27,
+      "losses": 13,
+      "draws": 6
+    },
     "Level 20": {
       "rating": 2000,
-      "wins": 24,
-      "losses": 2,
-      "draws": 1
+      "wins": 42,
+      "losses": 5,
+      "draws": 2
     },
     "Lorenzo": {
       "rating": 1800,
-      "wins": 14,
-      "losses": 2,
-      "draws": 0
+      "wins": 36,
+      "losses": 5,
+      "draws": 1
     },
     "Miguel": {
       "rating": 1900,
-      "wins": 18,
-      "losses": 2,
-      "draws": 1
+      "wins": 44,
+      "losses": 7,
+      "draws": 3
     },
     "Lasker": {
       "rating": 2640,
-      "wins": 18,
-      "losses": 2,
-      "draws": 1
+      "wins": 40,
+      "losses": 3,
+      "draws": 2
     },
     "Arthur": {
       "rating": 1700,
-      "wins": 11,
-      "losses": 1,
+      "wins": 36,
+      "losses": 6,
       "draws": 0
     },
     "Ahmed": {
       "rating": 2200,
-      "wins": 20,
+      "wins": 47,
       "losses": 1,
       "draws": 1
     },
     "Samay": {
       "rating": 1800,
-      "wins": 15,
-      "losses": 2,
+      "wins": 44,
+      "losses": 3,
       "draws": 1
     },
     "Drue Tranquill": {
       "rating": 1300,
-      "wins": 14,
-      "losses": 2,
-      "draws": 2
+      "wins": 34,
+      "losses": 8,
+      "draws": 3
     },
     "Phiona": {
       "rating": 1700,
-      "wins": 18,
-      "losses": 4,
-      "draws": 1
+      "wins": 42,
+      "losses": 6,
+      "draws": 2
     },
     "Jaylen Brown": {
       "rating": 1500,
-      "wins": 9,
-      "losses": 7,
-      "draws": 3
+      "wins": 36,
+      "losses": 11,
+      "draws": 4
     },
     "Jaime Jaquez Jr.": {
       "rating": 1150,
-      "wins": 13,
-      "losses": 6,
-      "draws": 1
+      "wins": 27,
+      "losses": 14,
+      "draws": 3
     },
     "Yoko Ono": {
       "rating": 1200,
-      "wins": 12,
-      "losses": 7,
-      "draws": 2
+      "wins": 31,
+      "losses": 17,
+      "draws": 5
     },
     "Level 18": {
       "rating": 2000,
-      "wins": 16,
-      "losses": 5,
-      "draws": 1
+      "wins": 38,
+      "losses": 10,
+      "draws": 3
     },
     "June": {
       "rating": 50,
-      "wins": 9,
-      "losses": 1,
+      "wins": 31,
+      "losses": 9,
       "draws": 2
     },
     "Level 13": {
       "rating": 1300,
-      "wins": 17,
-      "losses": 2,
-      "draws": 0
-    },
-    "Ali": {
-      "rating": 1400,
-      "wins": 20,
+      "wins": 34,
       "losses": 6,
       "draws": 1
     },
+    "Ali": {
+      "rating": 1400,
+      "wins": 39,
+      "losses": 8,
+      "draws": 2
+    },
     "Neeko": {
       "rating": 800,
-      "wins": 13,
-      "losses": 7,
-      "draws": 2
+      "wins": 32,
+      "losses": 9,
+      "draws": 4
     },
     "Level 25": {
       "rating": 2820,
-      "wins": 14,
-      "losses": 2,
-      "draws": 5
+      "wins": 42,
+      "losses": 4,
+      "draws": 11
     },
     "Pandolfini": {
       "rating": 2250,
-      "wins": 12,
-      "losses": 2,
+      "wins": 31,
+      "losses": 6,
       "draws": 2
     },
     "Level 12": {
       "rating": 1300,
-      "wins": 14,
-      "losses": 3,
-      "draws": 2
+      "wins": 32,
+      "losses": 7,
+      "draws": 3
     },
     "Luke": {
       "rating": 2450,
-      "wins": 19,
-      "losses": 2,
+      "wins": 47,
+      "losses": 6,
       "draws": 3
     },
     "David": {
       "rating": 1400,
-      "wins": 10,
-      "losses": 4,
-      "draws": 0
+      "wins": 33,
+      "losses": 11,
+      "draws": 5
     },
     "Hou Yifan": {
       "rating": 2686,
-      "wins": 19,
+      "wins": 43,
       "losses": 1,
       "draws": 3
     },
     "Anna": {
       "rating": 2400,
-      "wins": 22,
-      "losses": 4,
+      "wins": 55,
+      "losses": 5,
       "draws": 0
     },
     "Manuel": {
       "rating": 2100,
-      "wins": 16,
-      "losses": 0,
+      "wins": 42,
+      "losses": 6,
       "draws": 4
     },
     "Judit Polgar": {
       "rating": 2735,
-      "wins": 18,
+      "wins": 43,
       "losses": 0,
-      "draws": 0
+      "draws": 1
     },
     "Count Morphy": {
       "rating": 1800,
-      "wins": 17,
-      "losses": 4,
+      "wins": 47,
+      "losses": 5,
       "draws": 1
     },
     "Wilson": {
       "rating": 1200,
-      "wins": 15,
-      "losses": 2,
-      "draws": 0
+      "wins": 32,
+      "losses": 9,
+      "draws": 1
     },
     "Robin": {
       "rating": 100,
-      "wins": 17,
-      "losses": 2,
-      "draws": 2
+      "wins": 35,
+      "losses": 5,
+      "draws": 4
     },
     "Filip": {
       "rating": 400,
-      "wins": 21,
-      "losses": 1,
-      "draws": 0
+      "wins": 34,
+      "losses": 7,
+      "draws": 3
     },
     "Bok": {
       "rating": 2650,
-      "wins": 18,
-      "losses": 3,
+      "wins": 46,
+      "losses": 7,
       "draws": 1
     },
     "Zach": {
       "rating": 1,
-      "wins": 11,
-      "losses": 0,
-      "draws": 0
+      "wins": 29,
+      "losses": 4,
+      "draws": 3
     },
     "Mina": {
       "rating": 700,
-      "wins": 17,
-      "losses": 8,
+      "wins": 33,
+      "losses": 11,
       "draws": 0
     },
     "FunMasterMike": {
       "rating": 2300,
-      "wins": 22,
+      "wins": 53,
       "losses": 2,
       "draws": 0
     },
     "Pierre": {
       "rating": 1500,
-      "wins": 20,
-      "losses": 5,
+      "wins": 36,
+      "losses": 9,
       "draws": 1
     },
     "Level 11": {
       "rating": 1300,
-      "wins": 17,
-      "losses": 3,
+      "wins": 45,
+      "losses": 9,
       "draws": 1
     },
     "CDawgVA": {
       "rating": 900,
-      "wins": 12,
-      "losses": 3,
-      "draws": 2
+      "wins": 32,
+      "losses": 13,
+      "draws": 4
     },
     "Noel": {
       "rating": 550,
-      "wins": 12,
-      "losses": 4,
-      "draws": 4
+      "wins": 26,
+      "losses": 13,
+      "draws": 6
     },
     "Devon": {
       "rating": 1600,
-      "wins": 22,
-      "losses": 8,
-      "draws": 4
+      "wins": 36,
+      "losses": 17,
+      "draws": 5
     },
     "Mothman": {
       "rating": 900,
-      "wins": 11,
-      "losses": 9,
-      "draws": 6
+      "wins": 30,
+      "losses": 18,
+      "draws": 9
     },
     "Advanced": {
       "rating": 1600,
-      "wins": 44,
-      "losses": 11,
-      "draws": 13
+      "wins": 125,
+      "losses": 30,
+      "draws": 20
     },
     "Wirtual": {
       "rating": 1100,
-      "wins": 9,
-      "losses": 5,
-      "draws": 3
+      "wins": 27,
+      "losses": 14,
+      "draws": 4
     },
     "Intermediate": {
       "rating": 1000,
-      "wins": 81,
-      "losses": 21,
-      "draws": 6
+      "wins": 179,
+      "losses": 56,
+      "draws": 18
     },
     "SonicFox": {
       "rating": 1750,
-      "wins": 24,
-      "losses": 3,
-      "draws": 0
+      "wins": 40,
+      "losses": 5,
+      "draws": 1
     },
     "Dejan Joveljic": {
       "rating": 2217,
-      "wins": 19,
-      "losses": 3,
+      "wins": 46,
+      "losses": 6,
       "draws": 0
     },
     "Alexandra": {
       "rating": 2100,
-      "wins": 21,
-      "losses": 4,
-      "draws": 0
+      "wins": 44,
+      "losses": 5,
+      "draws": 3
     },
     "Level 15": {
       "rating": 1300,
-      "wins": 19,
-      "losses": 1,
-      "draws": 0
+      "wins": 41,
+      "losses": 5,
+      "draws": 1
     },
     "Elena": {
       "rating": 1200,
-      "wins": 12,
-      "losses": 6,
-      "draws": 2
+      "wins": 25,
+      "losses": 14,
+      "draws": 3
     },
     "Nemo": {
       "rating": 2300,
-      "wins": 13,
-      "losses": 0,
-      "draws": 1
-    },
-    "Pepe": {
-      "rating": 100,
-      "wins": 22,
+      "wins": 34,
       "losses": 2,
       "draws": 2
     },
+    "Pepe": {
+      "rating": 100,
+      "wins": 35,
+      "losses": 5,
+      "draws": 4
+    },
     "Krikor": {
       "rating": 2550,
-      "wins": 18,
-      "losses": 2,
+      "wins": 43,
+      "losses": 3,
       "draws": 0
     },
     "Daryl Morey": {
       "rating": 1550,
-      "wins": 12,
-      "losses": 0,
-      "draws": 2
+      "wins": 30,
+      "losses": 4,
+      "draws": 4
     },
     "Christian Pulisic": {
       "rating": 1500,
-      "wins": 22,
-      "losses": 4,
-      "draws": 0
+      "wins": 37,
+      "losses": 13,
+      "draws": 3
     },
     "Emir": {
       "rating": 1200,
-      "wins": 10,
-      "losses": 7,
-      "draws": 0
+      "wins": 23,
+      "losses": 12,
+      "draws": 2
     },
     "Level 23": {
       "rating": 2820,
-      "wins": 26,
-      "losses": 2,
-      "draws": 4
+      "wins": 53,
+      "losses": 4,
+      "draws": 8
     },
     "Level 9": {
       "rating": 700,
-      "wins": 10,
-      "losses": 5,
-      "draws": 1
+      "wins": 26,
+      "losses": 9,
+      "draws": 2
     },
     "Oscar": {
       "rating": 2100,
-      "wins": 23,
-      "losses": 3,
+      "wins": 39,
+      "losses": 5,
       "draws": 1
     },
     "Checkacabra": {
       "rating": 1250,
-      "wins": 19,
-      "losses": 2,
-      "draws": 2
+      "wins": 40,
+      "losses": 6,
+      "draws": 5
     },
     "Sakura": {
       "rating": 2200,
-      "wins": 17,
-      "losses": 2,
-      "draws": 1
+      "wins": 38,
+      "losses": 7,
+      "draws": 2
     },
     "Loch Chess Monster": {
       "rating": 575,
-      "wins": 12,
-      "losses": 4,
-      "draws": 3
+      "wins": 29,
+      "losses": 20,
+      "draws": 6
     },
     "Faye Webster": {
       "rating": 850,
-      "wins": 12,
-      "losses": 7,
-      "draws": 0
+      "wins": 25,
+      "losses": 16,
+      "draws": 2
     },
     "Nora": {
       "rating": 2200,
-      "wins": 18,
-      "losses": 1,
-      "draws": 5
+      "wins": 47,
+      "losses": 2,
+      "draws": 6
     },
     "Sven": {
       "rating": 1100,
-      "wins": 10,
-      "losses": 8,
-      "draws": 1
+      "wins": 24,
+      "losses": 13,
+      "draws": 7
     },
     "El Deplorable": {
       "rating": 2200,
-      "wins": 14,
+      "wins": 37,
       "losses": 3,
       "draws": 0
     },
     "Luison": {
       "rating": 2250,
-      "wins": 20,
-      "losses": 1,
-      "draws": 0
+      "wins": 43,
+      "losses": 2,
+      "draws": 2
     },
     "Tal": {
       "rating": 2705,
-      "wins": 12,
+      "wins": 38,
       "losses": 2,
-      "draws": 4
+      "draws": 5
     },
     "Larry Fitzgerald Jr.": {
       "rating": 1250,
-      "wins": 11,
-      "losses": 4,
-      "draws": 1
+      "wins": 29,
+      "losses": 13,
+      "draws": 3
     },
     "Danny": {
       "rating": 2500,
-      "wins": 24,
-      "losses": 2,
-      "draws": 0
+      "wins": 51,
+      "losses": 4,
+      "draws": 1
     },
     "Maurice": {
       "rating": 2550,
-      "wins": 21,
-      "losses": 0,
+      "wins": 46,
+      "losses": 1,
       "draws": 2
     },
     "Giri": {
       "rating": 2800,
-      "wins": 18,
-      "losses": 0,
-      "draws": 2
+      "wins": 38,
+      "losses": 1,
+      "draws": 3
     },
     "Magnus Carlsen": {
       "rating": 2882,
-      "wins": 10,
+      "wins": 43,
       "losses": 2,
-      "draws": 1
+      "draws": 4
     },
     "Jade": {
       "rating": 1300,
-      "wins": 16,
-      "losses": 3,
+      "wins": 41,
+      "losses": 12,
       "draws": 4
     },
     "Maximum": {
       "rating": 3200,
-      "wins": 16,
-      "losses": 1,
+      "wins": 38,
+      "losses": 5,
       "draws": 2
     },
     "Canty": {
       "rating": 2300,
-      "wins": 19,
-      "losses": 1,
+      "wins": 44,
+      "losses": 4,
       "draws": 1
     },
     "Nelson": {
       "rating": 1300,
-      "wins": 13,
-      "losses": 5,
+      "wins": 31,
+      "losses": 9,
       "draws": 2
     },
     "Wayne": {
       "rating": 250,
-      "wins": 17,
-      "losses": 3,
-      "draws": 2
+      "wins": 36,
+      "losses": 5,
+      "draws": 4
     },
     "Ben Finegold": {
       "rating": 2563,
-      "wins": 21,
-      "losses": 2,
-      "draws": 0
-    },
-    "Vidit": {
-      "rating": 2730,
-      "wins": 10,
-      "losses": 0,
-      "draws": 2
-    },
-    "Jonas": {
-      "rating": 1700,
-      "wins": 16,
-      "losses": 1,
-      "draws": 2
-    },
-    "Level 21": {
-      "rating": 2820,
-      "wins": 20,
-      "losses": 2,
-      "draws": 4
-    },
-    "Andrea": {
-      "rating": 2000,
-      "wins": 17,
-      "losses": 3,
-      "draws": 3
-    },
-    "Ian": {
-      "rating": 2795,
-      "wins": 20,
+      "wins": 41,
       "losses": 2,
       "draws": 1
     },
+    "Vidit": {
+      "rating": 2730,
+      "wins": 35,
+      "losses": 2,
+      "draws": 3
+    },
+    "Jonas": {
+      "rating": 1700,
+      "wins": 36,
+      "losses": 2,
+      "draws": 3
+    },
+    "Level 21": {
+      "rating": 2820,
+      "wins": 38,
+      "losses": 2,
+      "draws": 7
+    },
+    "Andrea": {
+      "rating": 2000,
+      "wins": 35,
+      "losses": 4,
+      "draws": 5
+    },
+    "Ian": {
+      "rating": 2795,
+      "wins": 54,
+      "losses": 3,
+      "draws": 3
+    },
     "Alexander": {
       "rating": 2450,
-      "wins": 17,
-      "losses": 2,
+      "wins": 44,
+      "losses": 4,
       "draws": 1
     },
     "Aron": {
       "rating": 700,
-      "wins": 16,
-      "losses": 4,
-      "draws": 2
+      "wins": 31,
+      "losses": 11,
+      "draws": 5
     },
     "Julia": {
       "rating": 1800,
-      "wins": 19,
+      "wins": 46,
       "losses": 4,
       "draws": 2
     },
     "Zara": {
       "rating": 850,
-      "wins": 13,
-      "losses": 5,
-      "draws": 0
+      "wins": 29,
+      "losses": 14,
+      "draws": 3
     },
     "Maria": {
       "rating": 1000,
-      "wins": 15,
-      "losses": 7,
-      "draws": 0
+      "wins": 36,
+      "losses": 11,
+      "draws": 1
     },
     "Level 19": {
       "rating": 2000,
-      "wins": 17,
+      "wins": 33,
       "losses": 1,
       "draws": 1
     },
     "Naycir": {
       "rating": 1300,
-      "wins": 10,
-      "losses": 4,
-      "draws": 2
+      "wins": 24,
+      "losses": 9,
+      "draws": 6
     },
     "Fatima": {
       "rating": 2000,
-      "wins": 10,
-      "losses": 3,
-      "draws": 0
+      "wins": 32,
+      "losses": 7,
+      "draws": 2
     },
     "Elsa": {
       "rating": 150,
-      "wins": 13,
-      "losses": 2,
-      "draws": 1
+      "wins": 33,
+      "losses": 6,
+      "draws": 3
     },
     "Level 4": {
       "rating": 250,
-      "wins": 13,
-      "losses": 3,
-      "draws": 2
+      "wins": 27,
+      "losses": 6,
+      "draws": 7
     },
     "Thomas Mars": {
       "rating": 1500,
-      "wins": 20,
-      "losses": 2,
-      "draws": 3
+      "wins": 37,
+      "losses": 4,
+      "draws": 5
     },
     "The Mechanical Turk": {
       "rating": 1,
-      "wins": 14,
+      "wins": 38,
       "losses": 0,
-      "draws": 4
+      "draws": 6
     },
     "Fabian": {
       "rating": 250,
-      "wins": 13,
-      "losses": 3,
-      "draws": 3
+      "wins": 32,
+      "losses": 10,
+      "draws": 4
     },
     "Fundy": {
       "rating": 1500,
-      "wins": 9,
-      "losses": 4,
-      "draws": 1
+      "wins": 26,
+      "losses": 10,
+      "draws": 2
     },
     "Level 5": {
       "rating": 250,
-      "wins": 14,
-      "losses": 5,
-      "draws": 5
+      "wins": 35,
+      "losses": 8,
+      "draws": 7
     },
     "Bartosz": {
       "rating": 2000,
-      "wins": 8,
-      "losses": 3,
-      "draws": 2
+      "wins": 26,
+      "losses": 7,
+      "draws": 7
     },
     "Nisha": {
       "rating": 900,
-      "wins": 8,
-      "losses": 6,
-      "draws": 3
+      "wins": 22,
+      "losses": 16,
+      "draws": 7
     },
     "Sofia": {
       "rating": 2300,
-      "wins": 16,
-      "losses": 0,
-      "draws": 2
+      "wins": 34,
+      "losses": 2,
+      "draws": 3
     },
     "Wallows": {
       "rating": 1200,
-      "wins": 13,
-      "losses": 8,
-      "draws": 3
+      "wins": 32,
+      "losses": 20,
+      "draws": 6
     },
     "Isla": {
       "rating": 1700,
-      "wins": 14,
-      "losses": 1,
-      "draws": 0
+      "wins": 34,
+      "losses": 4,
+      "draws": 1
     },
     "Mark Rober": {
       "rating": 1200,
-      "wins": 23,
-      "losses": 8,
-      "draws": 0
+      "wins": 34,
+      "losses": 15,
+      "draws": 4
     },
     "Level 22": {
       "rating": 2820,
-      "wins": 14,
-      "losses": 0,
-      "draws": 2
+      "wins": 35,
+      "losses": 2,
+      "draws": 6
     },
     "Logic": {
       "rating": 1500,
-      "wins": 16,
-      "losses": 0,
-      "draws": 2
+      "wins": 37,
+      "losses": 6,
+      "draws": 3
     },
     "Ludwig": {
       "rating": 1200,
-      "wins": 10,
-      "losses": 7,
-      "draws": 1
+      "wins": 22,
+      "losses": 17,
+      "draws": 3
     },
     "Mateo": {
       "rating": 1400,
-      "wins": 13,
-      "losses": 6,
-      "draws": 2
+      "wins": 40,
+      "losses": 8,
+      "draws": 4
     },
     "boxbox": {
       "rating": 1400,
-      "wins": 19,
-      "losses": 7,
-      "draws": 0
+      "wins": 44,
+      "losses": 10,
+      "draws": 3
     },
     "Aman": {
       "rating": 2550,
-      "wins": 14,
-      "losses": 1,
-      "draws": 0
+      "wins": 39,
+      "losses": 4,
+      "draws": 1
     },
     "Vinh": {
       "rating": 1300,
-      "wins": 17,
-      "losses": 2,
-      "draws": 2
-    },
-    "Level 8": {
-      "rating": 700,
-      "wins": 13,
-      "losses": 9,
-      "draws": 3
-    },
-    "Chidobe Awuzie": {
-      "rating": 1400,
-      "wins": 16,
-      "losses": 2,
-      "draws": 0
-    },
-    "Azeez": {
-      "rating": 1100,
-      "wins": 8,
+      "wins": 41,
       "losses": 6,
       "draws": 3
     },
+    "Level 8": {
+      "rating": 700,
+      "wins": 35,
+      "losses": 16,
+      "draws": 7
+    },
+    "Chidobe Awuzie": {
+      "rating": 1400,
+      "wins": 32,
+      "losses": 7,
+      "draws": 3
+    },
+    "Azeez": {
+      "rating": 1100,
+      "wins": 30,
+      "losses": 10,
+      "draws": 6
+    },
     "Fabiano": {
       "rating": 2840,
-      "wins": 9,
-      "losses": 0,
-      "draws": 3
+      "wins": 30,
+      "losses": 1,
+      "draws": 5
     },
     "Wendy": {
       "rating": 1500,
-      "wins": 10,
-      "losses": 3,
-      "draws": 2
+      "wins": 21,
+      "losses": 10,
+      "draws": 3
     },
     "Natasha": {
       "rating": 2000,
-      "wins": 20,
-      "losses": 0,
-      "draws": 1
+      "wins": 40,
+      "losses": 2,
+      "draws": 2
     },
     "Noam": {
       "rating": 2200,
-      "wins": 19,
-      "losses": 3,
+      "wins": 44,
+      "losses": 4,
       "draws": 0
     },
     "Joey Votto": {
       "rating": 1575,
-      "wins": 15,
-      "losses": 5,
-      "draws": 1
+      "wins": 35,
+      "losses": 7,
+      "draws": 3
     },
     "Agadmator": {
       "rating": 2000,
-      "wins": 16,
-      "losses": 2,
-      "draws": 2
+      "wins": 32,
+      "losses": 8,
+      "draws": 5
     },
     "Kevin": {
       "rating": 2300,
-      "wins": 16,
-      "losses": 1,
+      "wins": 42,
+      "losses": 4,
       "draws": 1
     },
     "Google En Passant Bot": {
       "rating": 1200,
-      "wins": 10,
-      "losses": 6,
-      "draws": 5
+      "wins": 28,
+      "losses": 15,
+      "draws": 7
     },
     "Level 17": {
       "rating": 2000,
-      "wins": 12,
-      "losses": 4,
-      "draws": 2
+      "wins": 34,
+      "losses": 9,
+      "draws": 3
     },
     "Isabel": {
       "rating": 1600,
-      "wins": 15,
-      "losses": 5,
-      "draws": 1
+      "wins": 39,
+      "losses": 13,
+      "draws": 3
     },
     "Ding Liren": {
       "rating": 2788,
-      "wins": 15,
-      "losses": 3,
-      "draws": 1
+      "wins": 36,
+      "losses": 4,
+      "draws": 4
     },
     "Wally": {
       "rating": 1800,
-      "wins": 11,
-      "losses": 1,
-      "draws": 2
+      "wins": 30,
+      "losses": 2,
+      "draws": 4
     },
     "Sardoche": {
       "rating": 1800,
-      "wins": 15,
-      "losses": 5,
+      "wins": 35,
+      "losses": 11,
       "draws": 2
     },
     "Li": {
       "rating": 2000,
-      "wins": 7,
-      "losses": 1,
+      "wins": 26,
+      "losses": 4,
       "draws": 2
     },
     "Wei": {
       "rating": 2450,
-      "wins": 15,
-      "losses": 2,
+      "wins": 43,
+      "losses": 6,
       "draws": 1
     },
     "Hikaru": {
       "rating": 2820,
-      "wins": 13,
-      "losses": 1,
-      "draws": 1
+      "wins": 40,
+      "losses": 2,
+      "draws": 2
     },
     "Antonio": {
       "rating": 1500,
-      "wins": 15,
-      "losses": 7,
-      "draws": 1
+      "wins": 31,
+      "losses": 14,
+      "draws": 4
     },
     "Olga": {
       "rating": 1900,
-      "wins": 11,
-      "losses": 3,
-      "draws": 1
+      "wins": 32,
+      "losses": 11,
+      "draws": 2
     },
     "Dawid": {
       "rating": 2400,
-      "wins": 15,
-      "losses": 0,
+      "wins": 48,
+      "losses": 3,
       "draws": 1
     },
     "Level 7": {
       "rating": 700,
-      "wins": 10,
-      "losses": 5,
-      "draws": 3
+      "wins": 19,
+      "losses": 12,
+      "draws": 4
     },
     "Jimmy": {
       "rating": 600,
-      "wins": 11,
-      "losses": 6,
-      "draws": 2
+      "wins": 36,
+      "losses": 14,
+      "draws": 6
     },
     "IamCristinini": {
       "rating": 800,
-      "wins": 4,
-      "losses": 8,
+      "wins": 18,
+      "losses": 18,
       "draws": 4
     },
     "Santiago": {
       "rating": 850,
-      "wins": 6,
-      "losses": 6,
-      "draws": 2
+      "wins": 23,
+      "losses": 9,
+      "draws": 5
     },
     "Irina Krush": {
       "rating": 2502,
-      "wins": 23,
+      "wins": 48,
       "losses": 2,
-      "draws": 1
+      "draws": 3
     },
     "Raffa Chess": {
       "rating": 2100,
-      "wins": 21,
-      "losses": 1,
+      "wins": 43,
+      "losses": 4,
       "draws": 0
     },
     "Xavier": {
       "rating": 1900,
-      "wins": 21,
-      "losses": 3,
-      "draws": 1
+      "wins": 46,
+      "losses": 5,
+      "draws": 2
     },
     "Oliver": {
       "rating": 550,
-      "wins": 13,
-      "losses": 4,
-      "draws": 3
+      "wins": 33,
+      "losses": 13,
+      "draws": 6
     },
     "Paul Morphy": {
       "rating": 2600,
-      "wins": 10,
-      "losses": 1,
+      "wins": 34,
+      "losses": 3,
       "draws": 1
     },
     "Steve Aoki": {
       "rating": 1000,
-      "wins": 19,
-      "losses": 6,
-      "draws": 1
+      "wins": 33,
+      "losses": 10,
+      "draws": 4
     },
     "QTCinderella": {
       "rating": 900,
-      "wins": 13,
-      "losses": 1,
-      "draws": 1
+      "wins": 41,
+      "losses": 3,
+      "draws": 5
     },
     "Level 1": {
       "rating": 250,
-      "wins": 16,
-      "losses": 2,
-      "draws": 1
+      "wins": 35,
+      "losses": 7,
+      "draws": 3
     },
     "Laura": {
       "rating": 1100,
-      "wins": 12,
-      "losses": 5,
-      "draws": 0
+      "wins": 31,
+      "losses": 16,
+      "draws": 1
     },
     "Sapnap": {
       "rating": 1000,
-      "wins": 11,
-      "losses": 5,
-      "draws": 3
+      "wins": 37,
+      "losses": 16,
+      "draws": 4
     },
     "Joel": {
       "rating": 1600,
-      "wins": 15,
-      "losses": 1,
-      "draws": 0
+      "wins": 36,
+      "losses": 3,
+      "draws": 2
     },
     "Danya": {
       "rating": 2650,
-      "wins": 14,
+      "wins": 32,
       "losses": 1,
       "draws": 2
     },
     "Maxim": {
       "rating": 1000,
-      "wins": 10,
-      "losses": 5,
-      "draws": 1
+      "wins": 23,
+      "losses": 11,
+      "draws": 2
     },
     "Justin Reid": {
       "rating": 1300,
-      "wins": 14,
-      "losses": 0,
-      "draws": 0
+      "wins": 36,
+      "losses": 8,
+      "draws": 3
     },
     "Anarchy Bot": {
       "rating": 1660,
-      "wins": 13,
-      "losses": 3,
-      "draws": 1
+      "wins": 30,
+      "losses": 6,
+      "draws": 2
     },
     "Vishy": {
       "rating": 2820,
-      "wins": 18,
-      "losses": 2,
-      "draws": 3
+      "wins": 48,
+      "losses": 3,
+      "draws": 4
     },
     "Level 6": {
       "rating": 700,
-      "wins": 7,
-      "losses": 4,
-      "draws": 1
+      "wins": 20,
+      "losses": 11,
+      "draws": 4
     },
     "Aerial Powers": {
       "rating": 1100,
-      "wins": 11,
-      "losses": 3,
-      "draws": 0
+      "wins": 32,
+      "losses": 11,
+      "draws": 1
     },
     "Pablo": {
       "rating": 1600,
-      "wins": 13,
-      "losses": 3,
-      "draws": 1
+      "wins": 28,
+      "losses": 7,
+      "draws": 2
     },
     "Level 14": {
       "rating": 1300,
-      "wins": 16,
-      "losses": 1,
-      "draws": 0
+      "wins": 36,
+      "losses": 9,
+      "draws": 1
     },
     "Julien Song": {
       "rating": 2422,
-      "wins": 11,
-      "losses": 1,
+      "wins": 39,
+      "losses": 4,
       "draws": 1
     },
     "HarryMack": {
       "rating": 600,
-      "wins": 9,
-      "losses": 4,
-      "draws": 3
+      "wins": 23,
+      "losses": 12,
+      "draws": 5
     },
     "Kosteniuk": {
       "rating": 2561,
-      "wins": 11,
-      "losses": 0,
+      "wins": 31,
+      "losses": 1,
       "draws": 1
     },
     "Pokimane": {
       "rating": 1000,
-      "wins": 7,
-      "losses": 3,
-      "draws": 1
+      "wins": 23,
+      "losses": 9,
+      "draws": 4
     },
     "Martin": {
       "rating": 250,
-      "wins": 10,
-      "losses": 6,
+      "wins": 34,
+      "losses": 8,
       "draws": 0
     },
     "Sabo": {
       "rating": 1969,
-      "wins": 19,
-      "losses": 2,
+      "wins": 39,
+      "losses": 6,
       "draws": 1
     },
     "Level 10": {
       "rating": 700,
-      "wins": 9,
-      "losses": 7,
-      "draws": 3
+      "wins": 32,
+      "losses": 14,
+      "draws": 4
     },
     "Karim": {
       "rating": 850,
-      "wins": 11,
-      "losses": 6,
-      "draws": 0
+      "wins": 24,
+      "losses": 8,
+      "draws": 1
     },
     "Eric": {
       "rating": 2600,
-      "wins": 15,
-      "losses": 2,
+      "wins": 49,
+      "losses": 3,
       "draws": 0
     },
     "Robert": {
       "rating": 2600,
-      "wins": 11,
+      "wins": 34,
       "losses": 4,
       "draws": 0
     },
     "Level 3": {
       "rating": 250,
-      "wins": 11,
-      "losses": 1,
-      "draws": 1
+      "wins": 31,
+      "losses": 7,
+      "draws": 5
     }
   },
   "cycles": [
@@ -1562,6 +1562,443 @@
       "buffer_size": 200000,
       "cycle_time_seconds": 241.1253433227539,
       "total_elapsed_seconds": 3559.8052246570587
+    },
+    {
+      "cycle": 18,
+      "total_completed_games": 4501,
+      "cycle_neural_wins": 189,
+      "cycle_engine_wins": 34,
+      "cycle_draws": 27,
+      "avg_plies": 66.024,
+      "global_neural_wins": 3454,
+      "global_engine_wins": 702,
+      "global_draws": 345,
+      "neural_win_rate": 76.73850255498778,
+      "draw_rate": 7.6649633414796705,
+      "loss": 1.680302476334145,
+      "policy_loss": 1.5472576957377022,
+      "value_loss": 0.2660895591349248,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 237.03638339042664,
+      "total_elapsed_seconds": 3796.966397047043
+    },
+    {
+      "cycle": 19,
+      "total_completed_games": 4751,
+      "cycle_neural_wins": 201,
+      "cycle_engine_wins": 38,
+      "cycle_draws": 11,
+      "avg_plies": 65.564,
+      "global_neural_wins": 3655,
+      "global_engine_wins": 740,
+      "global_draws": 356,
+      "neural_win_rate": 76.9311723847611,
+      "draw_rate": 7.493159334876869,
+      "loss": 1.6607407022010334,
+      "policy_loss": 1.5292501738461692,
+      "value_loss": 0.26298105506145436,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 228.6842291355133,
+      "total_elapsed_seconds": 4025.768864631653
+    },
+    {
+      "cycle": 20,
+      "total_completed_games": 5003,
+      "cycle_neural_wins": 201,
+      "cycle_engine_wins": 36,
+      "cycle_draws": 15,
+      "avg_plies": 65.7420634920635,
+      "global_neural_wins": 3856,
+      "global_engine_wins": 776,
+      "global_draws": 371,
+      "neural_win_rate": 77.07375574655207,
+      "draw_rate": 7.4155506695982405,
+      "loss": 1.6546748449735325,
+      "policy_loss": 1.5220511363595344,
+      "value_loss": 0.265247420400686,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 236.19302487373352,
+      "total_elapsed_seconds": 4262.080632925034
+    },
+    {
+      "cycle": 21,
+      "total_completed_games": 5252,
+      "cycle_neural_wins": 187,
+      "cycle_engine_wins": 49,
+      "cycle_draws": 13,
+      "avg_plies": 66.97991967871486,
+      "global_neural_wins": 4043,
+      "global_engine_wins": 825,
+      "global_draws": 384,
+      "neural_win_rate": 76.98019801980197,
+      "draw_rate": 7.311500380807312,
+      "loss": 1.6772520465161793,
+      "policy_loss": 1.5434115067924685,
+      "value_loss": 0.2676810832965709,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 241.05143404006958,
+      "total_elapsed_seconds": 4503.2492644786835
+    },
+    {
+      "cycle": 22,
+      "total_completed_games": 5500,
+      "cycle_neural_wins": 198,
+      "cycle_engine_wins": 32,
+      "cycle_draws": 18,
+      "avg_plies": 65.33064516129032,
+      "global_neural_wins": 4241,
+      "global_engine_wins": 857,
+      "global_draws": 402,
+      "neural_win_rate": 77.10909090909091,
+      "draw_rate": 7.3090909090909095,
+      "loss": 1.6553105245465818,
+      "policy_loss": 1.523817954542082,
+      "value_loss": 0.2629851384750565,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 213.40457367897034,
+      "total_elapsed_seconds": 4716.781544923782
+    },
+    {
+      "cycle": 23,
+      "total_completed_games": 5750,
+      "cycle_neural_wins": 203,
+      "cycle_engine_wins": 36,
+      "cycle_draws": 11,
+      "avg_plies": 66.116,
+      "global_neural_wins": 4444,
+      "global_engine_wins": 893,
+      "global_draws": 413,
+      "neural_win_rate": 77.28695652173913,
+      "draw_rate": 7.182608695652173,
+      "loss": 1.6247086022668482,
+      "policy_loss": 1.4954202876371496,
+      "value_loss": 0.2585766266964738,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 220.32904505729675,
+      "total_elapsed_seconds": 4937.3460149765015
+    },
+    {
+      "cycle": 24,
+      "total_completed_games": 6001,
+      "cycle_neural_wins": 194,
+      "cycle_engine_wins": 43,
+      "cycle_draws": 14,
+      "avg_plies": 65.55776892430279,
+      "global_neural_wins": 4638,
+      "global_engine_wins": 936,
+      "global_draws": 427,
+      "neural_win_rate": 77.28711881353108,
+      "draw_rate": 7.115480753207799,
+      "loss": 1.6147447544366806,
+      "policy_loss": 1.485667541966109,
+      "value_loss": 0.25815442142546025,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 223.5469672679901,
+      "total_elapsed_seconds": 5161.176897525787
+    },
+    {
+      "cycle": 25,
+      "total_completed_games": 6250,
+      "cycle_neural_wins": 202,
+      "cycle_engine_wins": 30,
+      "cycle_draws": 17,
+      "avg_plies": 64.31726907630522,
+      "global_neural_wins": 4840,
+      "global_engine_wins": 966,
+      "global_draws": 444,
+      "neural_win_rate": 77.44,
+      "draw_rate": 7.104000000000001,
+      "loss": 1.5898516362585375,
+      "policy_loss": 1.4640217831982372,
+      "value_loss": 0.2516597067684774,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 215.6448516845703,
+      "total_elapsed_seconds": 5376.944584608078
+    },
+    {
+      "cycle": 26,
+      "total_completed_games": 6504,
+      "cycle_neural_wins": 204,
+      "cycle_engine_wins": 37,
+      "cycle_draws": 13,
+      "avg_plies": 67.44881889763779,
+      "global_neural_wins": 5044,
+      "global_engine_wins": 1003,
+      "global_draws": 457,
+      "neural_win_rate": 77.55227552275524,
+      "draw_rate": 7.026445264452645,
+      "loss": 1.5839647997523207,
+      "policy_loss": 1.4566550110002308,
+      "value_loss": 0.2546195758368506,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 225.6762900352478,
+      "total_elapsed_seconds": 5602.736160039902
+    },
+    {
+      "cycle": 27,
+      "total_completed_games": 6751,
+      "cycle_neural_wins": 201,
+      "cycle_engine_wins": 30,
+      "cycle_draws": 16,
+      "avg_plies": 65.89878542510121,
+      "global_neural_wins": 5245,
+      "global_engine_wins": 1033,
+      "global_draws": 473,
+      "neural_win_rate": 77.6921937490742,
+      "draw_rate": 7.006369426751593,
+      "loss": 1.5351929803333624,
+      "policy_loss": 1.4105904202555757,
+      "value_loss": 0.2492051193076174,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 226.01090097427368,
+      "total_elapsed_seconds": 5828.993717432022
+    },
+    {
+      "cycle": 28,
+      "total_completed_games": 7000,
+      "cycle_neural_wins": 191,
+      "cycle_engine_wins": 41,
+      "cycle_draws": 17,
+      "avg_plies": 67.54618473895583,
+      "global_neural_wins": 5436,
+      "global_engine_wins": 1074,
+      "global_draws": 490,
+      "neural_win_rate": 77.65714285714286,
+      "draw_rate": 7.000000000000001,
+      "loss": 1.5503155889413547,
+      "policy_loss": 1.4232778500031937,
+      "value_loss": 0.2540754779906529,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 239.33834385871887,
+      "total_elapsed_seconds": 6068.440285205841
+    },
+    {
+      "cycle": 29,
+      "total_completed_games": 7251,
+      "cycle_neural_wins": 194,
+      "cycle_engine_wins": 43,
+      "cycle_draws": 14,
+      "avg_plies": 67.44621513944223,
+      "global_neural_wins": 5630,
+      "global_engine_wins": 1117,
+      "global_draws": 504,
+      "neural_win_rate": 77.64446283271272,
+      "draw_rate": 6.950765411667356,
+      "loss": 1.5478189751086637,
+      "policy_loss": 1.4225234037165142,
+      "value_loss": 0.25059114189823267,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 225.3470447063446,
+      "total_elapsed_seconds": 6294.035916090012
+    },
+    {
+      "cycle": 30,
+      "total_completed_games": 7500,
+      "cycle_neural_wins": 202,
+      "cycle_engine_wins": 35,
+      "cycle_draws": 12,
+      "avg_plies": 66.34939759036145,
+      "global_neural_wins": 5832,
+      "global_engine_wins": 1152,
+      "global_draws": 516,
+      "neural_win_rate": 77.75999999999999,
+      "draw_rate": 6.88,
+      "loss": 1.5134662352025967,
+      "policy_loss": 1.3891694153971075,
+      "value_loss": 0.24859364171657722,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 220.52963066101074,
+      "total_elapsed_seconds": 6514.7038061618805
+    },
+    {
+      "cycle": 31,
+      "total_completed_games": 7753,
+      "cycle_neural_wins": 200,
+      "cycle_engine_wins": 39,
+      "cycle_draws": 14,
+      "avg_plies": 69.23320158102767,
+      "global_neural_wins": 6032,
+      "global_engine_wins": 1191,
+      "global_draws": 530,
+      "neural_win_rate": 77.80214110666839,
+      "draw_rate": 6.836063459306076,
+      "loss": 1.5155856346382814,
+      "policy_loss": 1.3920153036446827,
+      "value_loss": 0.24714066412137903,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 235.91820883750916,
+      "total_elapsed_seconds": 6750.747835159302
+    },
+    {
+      "cycle": 32,
+      "total_completed_games": 8000,
+      "cycle_neural_wins": 193,
+      "cycle_engine_wins": 39,
+      "cycle_draws": 15,
+      "avg_plies": 69.02834008097166,
+      "global_neural_wins": 6225,
+      "global_engine_wins": 1230,
+      "global_draws": 545,
+      "neural_win_rate": 77.8125,
+      "draw_rate": 6.812500000000001,
+      "loss": 1.5344193749644262,
+      "policy_loss": 1.408575389581873,
+      "value_loss": 0.2516879690882495,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 248.9354169368744,
+      "total_elapsed_seconds": 6999.928647041321
+    },
+    {
+      "cycle": 33,
+      "total_completed_games": 8250,
+      "cycle_neural_wins": 190,
+      "cycle_engine_wins": 41,
+      "cycle_draws": 19,
+      "avg_plies": 68.504,
+      "global_neural_wins": 6415,
+      "global_engine_wins": 1271,
+      "global_draws": 564,
+      "neural_win_rate": 77.75757575757576,
+      "draw_rate": 6.836363636363636,
+      "loss": 1.5226834430109204,
+      "policy_loss": 1.39742959746162,
+      "value_loss": 0.2505076898219031,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 250.31478905677795,
+      "total_elapsed_seconds": 7250.361182928085
+    },
+    {
+      "cycle": 34,
+      "total_completed_games": 8501,
+      "cycle_neural_wins": 201,
+      "cycle_engine_wins": 41,
+      "cycle_draws": 9,
+      "avg_plies": 63.86852589641434,
+      "global_neural_wins": 6616,
+      "global_engine_wins": 1312,
+      "global_draws": 573,
+      "neural_win_rate": 77.82613810139983,
+      "draw_rate": 6.740383484295966,
+      "loss": 1.519402244054448,
+      "policy_loss": 1.3930528559495725,
+      "value_loss": 0.2526987778008594,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 227.1142086982727,
+      "total_elapsed_seconds": 7477.609118938446
+    },
+    {
+      "cycle": 35,
+      "total_completed_games": 8754,
+      "cycle_neural_wins": 188,
+      "cycle_engine_wins": 47,
+      "cycle_draws": 18,
+      "avg_plies": 67.71541501976284,
+      "global_neural_wins": 6804,
+      "global_engine_wins": 1359,
+      "global_draws": 591,
+      "neural_win_rate": 77.72446881425634,
+      "draw_rate": 6.751199451679232,
+      "loss": 1.5612675137913135,
+      "policy_loss": 1.4339884374376453,
+      "value_loss": 0.25455815437466595,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 230.31404447555542,
+      "total_elapsed_seconds": 7708.037405729294
+    },
+    {
+      "cycle": 36,
+      "total_completed_games": 9000,
+      "cycle_neural_wins": 195,
+      "cycle_engine_wins": 35,
+      "cycle_draws": 16,
+      "avg_plies": 67.40650406504065,
+      "global_neural_wins": 6999,
+      "global_engine_wins": 1394,
+      "global_draws": 607,
+      "neural_win_rate": 77.76666666666667,
+      "draw_rate": 6.7444444444444445,
+      "loss": 1.5364715626172702,
+      "policy_loss": 1.4101801248615051,
+      "value_loss": 0.25258287486365383,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 230.1734676361084,
+      "total_elapsed_seconds": 7938.455500841141
+    },
+    {
+      "cycle": 37,
+      "total_completed_games": 9251,
+      "cycle_neural_wins": 194,
+      "cycle_engine_wins": 42,
+      "cycle_draws": 15,
+      "avg_plies": 68.66533864541833,
+      "global_neural_wins": 7193,
+      "global_engine_wins": 1436,
+      "global_draws": 622,
+      "neural_win_rate": 77.75375635066479,
+      "draw_rate": 6.7235974489244414,
+      "loss": 1.5648532743039338,
+      "policy_loss": 1.4367192045730703,
+      "value_loss": 0.2562681411481117,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 251.59154415130615,
+      "total_elapsed_seconds": 8190.156971216202
+    },
+    {
+      "cycle": 38,
+      "total_completed_games": 9501,
+      "cycle_neural_wins": 194,
+      "cycle_engine_wins": 44,
+      "cycle_draws": 12,
+      "avg_plies": 68.324,
+      "global_neural_wins": 7387,
+      "global_engine_wins": 1480,
+      "global_draws": 634,
+      "neural_win_rate": 77.7497105567835,
+      "draw_rate": 6.67298179139038,
+      "loss": 1.561433129450854,
+      "policy_loss": 1.4324272935042905,
+      "value_loss": 0.2580116718073788,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 247.94607543945312,
+      "total_elapsed_seconds": 8438.247379302979
+    },
+    {
+      "cycle": 39,
+      "total_completed_games": 9752,
+      "cycle_neural_wins": 200,
+      "cycle_engine_wins": 35,
+      "cycle_draws": 16,
+      "avg_plies": 66.43426294820718,
+      "global_neural_wins": 7587,
+      "global_engine_wins": 1515,
+      "global_draws": 650,
+      "neural_win_rate": 77.79942575881871,
+      "draw_rate": 6.665299425758819,
+      "loss": 1.5771547190825959,
+      "policy_loss": 1.4480708488036909,
+      "value_loss": 0.2581677399289882,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 246.1915533542633,
+      "total_elapsed_seconds": 8684.759218454361
+    },
+    {
+      "cycle": 40,
+      "total_completed_games": 10000,
+      "cycle_neural_wins": 195,
+      "cycle_engine_wins": 37,
+      "cycle_draws": 16,
+      "avg_plies": 66.27016129032258,
+      "global_neural_wins": 7782,
+      "global_engine_wins": 1552,
+      "global_draws": 666,
+      "neural_win_rate": 77.82,
+      "draw_rate": 6.660000000000001,
+      "loss": 1.57508747672181,
+      "policy_loss": 1.4451404141114497,
+      "value_loss": 0.2598941238487468,
+      "buffer_size": 200000,
+      "cycle_time_seconds": 238.75718450546265,
+      "total_elapsed_seconds": 8923.64880824089
     }
   ]
 }

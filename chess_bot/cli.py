@@ -58,7 +58,7 @@ def start_arena(host: str = "0.0.0.0", port: int = 8000):
     print(" [*] Bots Integrados   : 217 Bots Oficiais + Neural_Bot 3200")
     print(" [*] Pressione CTRL+C para encerrar o servidor.\n")
     import uvicorn
-    uvicorn.run("arena.server:app", host=host, port=port, reload=False, app_dir=str(CURRENT_DIR))
+    uvicorn.run("arena.server:app", host=host, port=port, reload=True, app_dir=str(CURRENT_DIR))
 
 
 # ==============================================================================

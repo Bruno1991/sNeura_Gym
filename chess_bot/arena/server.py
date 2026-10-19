@@ -585,6 +585,14 @@ def serve_js():
     )
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def serve_favicon():
+    fav = CURRENT_DIR / "favicon.ico"
+    if fav.is_file():
+        return FileResponse(str(fav), media_type="image/x-icon")
+    return Response(status_code=204)
+
+
 @app.get("/api/bots")
 def list_available_bots():
     """Retorna os 217 bots oficiais do APK organizados por categorias + Neural_Bot 3200."""

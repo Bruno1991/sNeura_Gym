@@ -1,0 +1,24 @@
+[
+  {
+    "timestamp": 1792426549.6547518,
+    "game_number": 1,
+    "opponent": "Martin",
+    "outcome": 1.0,
+    "outcome_description": "Vit\u00f3ria Neural por Xeque-Mate",
+    "positions_trained": 43,
+    "loss": 7.077695369720459,
+    "policy_loss": 6.510976314544678,
+    "value_loss": 1.1334377527236938
+  },
+  {
+    "timestamp": 1792428273.8217916,
+    "game_number": 1,
+    "opponent": "Loch Chess Monster",
+    "outcome": 1.0,
+    "outcome_description": "Vit\u00f3ria Neural por Xeque-Mate",
+    "positions_trained": 37,
+    "loss": 4.533613681793213,
+    "policy_loss": 4.250572204589844,
+    "value_loss": 0.5660833716392517
+  }
+]
