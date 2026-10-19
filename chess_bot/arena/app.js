@@ -424,7 +424,7 @@ class GymArenaApp {
       card.className = `bot-card-item ${bot.name === 'Neural_Bot' ? 'featured-bot' : ''}`;
       card.innerHTML = `
         <div class="bot-avatar-container">
-          <img src="${bot.avatar}" alt="${bot.name}" class="bot-avatar-img" onerror="this.src='/assets/avatars/default.png'">
+          <img src="${bot.avatar}" alt="" class="bot-avatar-img" onerror="this.onerror=null; this.src='/assets/avatars/default.png'">
           <span class="bot-elo-badge">${bot.elo}</span>
         </div>
         <div class="bot-meta-info">

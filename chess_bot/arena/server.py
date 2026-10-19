@@ -68,8 +68,8 @@ if ASSETS_DIR.is_dir():
     app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 
-def resolve_bot_avatar(bot_name: Optional[str], group_name: str = "") -> str:
-    """Resolve caminho para o avatar do bot existente ou fallback seguro para default.png."""
+def resolve_bot_avatar(bot_name: Optional[str], group_name: str = "", remote_url: Optional[str] = None) -> str:
+    """Resolve caminho para o avatar do bot existente, URL remota ou fallback seguro para default.png."""
     if not bot_name:
         return "/assets/avatars/default.png"
     if bot_name == "Neural_Bot":
@@ -92,6 +92,9 @@ def resolve_bot_avatar(bot_name: Optional[str], group_name: str = "") -> str:
         for f in avatars_dir.glob("*.png"):
             if f.stem.lower() == group_name.lower():
                 return f"/assets/avatars/{f.name}"
+
+    if remote_url and remote_url.startswith("http"):
+        return remote_url
 
     return "/assets/avatars/default.png"
 
@@ -626,7 +629,7 @@ def list_available_bots():
                         "description": b.get("bio", b.get("description", "")),
                         "greeting": greeting,
                         "book": b.get("book", "balanced"),
-                        "avatar": resolve_bot_avatar(b_name, group_name),
+                        "avatar": resolve_bot_avatar(b_name, group_name, b.get("imageUrl") or b.get("avatarWithoutBackground")),
                         "is_neural": False,
                     })
 
