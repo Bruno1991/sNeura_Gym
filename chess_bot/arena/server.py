@@ -25,7 +25,7 @@ import chess.polyglot
 import torch
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -598,9 +598,32 @@ def list_available_bots():
     """Retorna os 217 bots oficiais do APK organizados por categorias + Neural_Bot 3200."""
     categories: List[Dict[str, Any]] = []
 
+    cat_meta_map = {
+        "🧠 Neural_Bot 3200": {"icon": "🧠", "label": "Rede Neural (3200 Elo)"},
+        "The Cryptids": {"icon": "🐾", "label": "The Cryptids (Lendas)"},
+        "New to Chess": {"icon": "🐣", "label": "Iniciantes (Aprendendo)"},
+        "Beginner": {"icon": "♟️", "label": "Principiantes"},
+        "Intermediate": {"icon": "⚔️", "label": "Intermediários"},
+        "Advanced": {"icon": "🛡️", "label": "Avançados"},
+        "Master": {"icon": "👑", "label": "Mestres"},
+        "Top Players": {"icon": "🏆", "label": "Grandes Mestres & Top Players"},
+        "Creators": {"icon": "🎭", "label": "Criadores de Conteúdo"},
+        "Athletes": {"icon": "⚡", "label": "Atletas"},
+        "Musicians": {"icon": "🎵", "label": "Músicos"},
+        "Adaptive": {"icon": "🔄", "label": "Bots Adaptativos"},
+        "Personalities": {"icon": "🧩", "label": "Personalidades Históricas"},
+        "Visualization": {"icon": "👁️", "label": "Treinadores de Visualização"},
+        "Engine": {"icon": "🤖", "label": "Komodo Engine (Níveis 1-25)"},
+    }
+
     # 1. Categoria Especial: Neural_Bot (Residente de Elite)
     categories.append({
         "group_name": "🧠 Neural_Bot 3200",
+        "label": "Rede Neural (3200 Elo)",
+        "icon": "🧠",
+        "count": 1,
+        "min_elo": 3200,
+        "max_elo": 3200,
         "description": "Rede Neural ResNet de 128 Canais com MCTS Profundo e 97,4% de Win Rate",
         "bots": [
             {
@@ -642,9 +665,16 @@ def list_available_bots():
                     })
 
                 if bot_list:
+                    meta = cat_meta_map.get(group_name, {"icon": "♟️", "label": group_name})
+                    elos = [b["rating"] for b in bot_list]
                     categories.append({
                         "group_name": group_name,
-                        "description": f"{len(bot_list)} bots oficiais disponíveis",
+                        "label": meta.get("label", group_name),
+                        "icon": meta.get("icon", "♟️"),
+                        "count": len(bot_list),
+                        "min_elo": min(elos),
+                        "max_elo": max(elos),
+                        "description": f"{len(bot_list)} bots oficiais disponíveis (Elo {min(elos)} - {max(elos)})",
                         "bots": bot_list
                     })
             flat_bots = [b for c in categories for b in c["bots"]]

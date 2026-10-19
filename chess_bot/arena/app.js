@@ -58,6 +58,7 @@ class GymArenaApp {
   constructor() {
     this.audio = new AudioManager();
     this.bots = [];
+    this.categories = [];
     this.selectedBot = null;
     this.selectedMode = 'neural_vs_bot'; // 'neural_vs_bot', 'human_vs_bot', 'human_vs_neural'
     this.selectedColor = 'white'; // 'white', 'random', 'black'
@@ -175,6 +176,30 @@ class GymArenaApp {
     this.gameOverDesc = document.getElementById('gameOverDesc');
     this.modalRematchBtn = document.getElementById('modalRematchBtn');
     this.modalChooseBotBtn = document.getElementById('modalChooseBotBtn');
+
+    // Abas do Painel Lateral e Lances
+    this.tabViewBots = document.getElementById('tabViewBots');
+    this.tabViewMatch = document.getElementById('tabViewMatch');
+    this.sidebarBotsContent = document.getElementById('sidebarBotsContent');
+    this.sidebarMatchContent = document.getElementById('sidebarMatchContent');
+    this.catalogBadgeCount = document.getElementById('catalogBadgeCount');
+
+    this.summaryOppAvatar = document.getElementById('summaryOppAvatar');
+    this.summaryOppName = document.getElementById('summaryOppName');
+    this.summaryOppElo = document.getElementById('summaryOppElo');
+    this.summaryOppBio = document.getElementById('summaryOppBio');
+    this.sidebarBotSpeech = document.getElementById('sidebarBotSpeech');
+    this.sidebarSpeechText = document.getElementById('sidebarSpeechText');
+
+    this.movesTableBody = document.getElementById('movesTableBody');
+    this.movesCountBadge = document.getElementById('movesCountBadge');
+    this.movesTableScroll = document.getElementById('movesTableScroll');
+
+    this.sideTelEngineTag = document.getElementById('sideTelEngineTag');
+    this.sideTelEval = document.getElementById('sideTelEval');
+    this.sideTelConf = document.getElementById('sideTelConf');
+    this.sideTelMove = document.getElementById('sideTelMove');
+    this.sideTelVisits = document.getElementById('sideTelVisits');
   }
 
   bindEvents() {
@@ -194,6 +219,14 @@ class GymArenaApp {
       pill.classList.add('active');
       this.filterBots();
     });
+
+    // Abas Superiores do Painel Lateral (Bots Oficiais vs Partida & Lances)
+    if (this.tabViewBots) {
+      this.tabViewBots.addEventListener('click', () => this.switchSidebarTab('bots'));
+    }
+    if (this.tabViewMatch) {
+      this.tabViewMatch.addEventListener('click', () => this.switchSidebarTab('match'));
+    }
 
     // Fechar Drawer ao clicar no backdrop
     this.challengeDrawer.addEventListener('click', (e) => {
@@ -352,12 +385,27 @@ class GymArenaApp {
   // ============================================================================
   // CATÁLOGO DE BOTS
   // ============================================================================
+  switchSidebarTab(tab) {
+    if (tab === 'match') {
+      if (this.tabViewMatch) this.tabViewMatch.classList.add('active');
+      if (this.tabViewBots) this.tabViewBots.classList.remove('active');
+      if (this.sidebarMatchContent) this.sidebarMatchContent.classList.remove('hidden');
+      if (this.sidebarBotsContent) this.sidebarBotsContent.classList.add('hidden');
+    } else {
+      if (this.tabViewBots) this.tabViewBots.classList.add('active');
+      if (this.tabViewMatch) this.tabViewMatch.classList.remove('active');
+      if (this.sidebarBotsContent) this.sidebarBotsContent.classList.remove('hidden');
+      if (this.sidebarMatchContent) this.sidebarMatchContent.classList.add('hidden');
+    }
+  }
+
   async loadBotsCatalog() {
     try {
       const res = await fetch('/api/bots');
       const data = await res.json();
+      this.categories = data.categories || [];
       let rawBots = [];
-      if (Array.isArray(data.bots)) {
+      if (Array.isArray(data.bots) && data.bots.length > 0) {
         rawBots = data.bots;
       } else if (Array.isArray(data.categories)) {
         rawBots = data.categories.flatMap(c => c.bots || []);
@@ -374,8 +422,11 @@ class GymArenaApp {
         is_neural: Boolean(b.is_neural)
       }));
 
+      if (this.catalogBadgeCount) {
+        this.catalogBadgeCount.textContent = this.bots.length;
+      }
       this.headerSubBadge.textContent = `${this.bots.length} Bots`;
-      this.renderBotsList(this.bots);
+      this.renderCategorizedBots(this.categories);
     } catch (err) {
       console.error("Erro ao carregar catálogo de bots:", err);
     }
@@ -390,37 +441,47 @@ class GymArenaApp {
     }
 
     const activePill = document.querySelector('.cat-pill.active');
-    const category = activePill ? activePill.dataset.category : 'all';
+    const categoryFilter = activePill ? activePill.dataset.category : 'all';
 
-    const filtered = this.bots.filter(bot => {
-      // Filtro de Categoria
-      let matchesCategory = true;
-      if (category === '🧠 Neural_Bot 3200') {
-        matchesCategory = bot.name === 'Neural_Bot' || bot.is_neural;
-      } else if (category !== 'all') {
-        matchesCategory = (bot.category || '').toLowerCase().includes(category.toLowerCase());
+    const filteredCategories = [];
+
+    this.categories.forEach(cat => {
+      // Filtro de aba de categoria
+      if (categoryFilter !== 'all') {
+        if (categoryFilter === '🧠 Neural_Bot 3200') {
+          if (!cat.group_name.includes('Neural_Bot')) return;
+        } else if (!cat.group_name.toLowerCase().includes(categoryFilter.toLowerCase())) {
+          return;
+        }
       }
 
-      // Filtro de Busca
-      let matchesSearch = true;
+      // Filtro de busca textual
+      let matchedBots = cat.bots || [];
       if (query) {
-        matchesSearch = (
-          bot.name.toLowerCase().includes(query) ||
-          (bot.category || '').toLowerCase().includes(query) ||
-          String(bot.elo).includes(query) ||
-          (bot.bio || '').toLowerCase().includes(query)
-        );
+        matchedBots = matchedBots.filter(bot => {
+          const name = (bot.name || '').toLowerCase();
+          const group = (bot.group || cat.group_name || '').toLowerCase();
+          const bio = (bot.description || bot.bio || '').toLowerCase();
+          const elo = String(bot.rating || bot.elo || '');
+          return name.includes(query) || group.includes(query) || bio.includes(query) || elo.includes(query);
+        });
       }
 
-      return matchesCategory && matchesSearch;
+      if (matchedBots.length > 0) {
+        filteredCategories.push({
+          ...cat,
+          bots: matchedBots
+        });
+      }
     });
 
-    this.renderBotsList(filtered);
+    const shouldAutoExpand = (query.length > 0) || (categoryFilter !== 'all');
+    this.renderCategorizedBots(filteredCategories, shouldAutoExpand);
   }
 
-  renderBotsList(bots) {
+  renderCategorizedBots(categories, autoExpandAll = false) {
     this.botsListContainer.innerHTML = '';
-    if (bots.length === 0) {
+    if (!categories || categories.length === 0) {
       this.botsListContainer.innerHTML = `
         <div style="text-align: center; color: var(--text-muted); padding: 40px 10px;">
           Nenhum bot encontrado com esse filtro.
@@ -428,30 +489,110 @@ class GymArenaApp {
       return;
     }
 
-    bots.forEach(bot => {
-      const card = document.createElement('div');
-      card.className = `bot-card-item ${bot.name === 'Neural_Bot' ? 'featured-bot' : ''}`;
-      card.innerHTML = `
-        <div class="bot-avatar-container">
-          <img src="${bot.avatar}" alt="" class="bot-avatar-img" onerror="this.onerror=null; this.src='/assets/avatars/default.png'">
-          <span class="bot-elo-badge">${bot.elo}</span>
-        </div>
-        <div class="bot-meta-info">
-          <div class="bot-name-row">
-            <span class="bot-title-name">${bot.name}</span>
-            <span class="bot-category-tag">• ${bot.category || 'Mestre'}</span>
+    categories.forEach((cat, idx) => {
+      const catBots = cat.bots || [];
+      if (catBots.length === 0) return;
+
+      const section = document.createElement('div');
+      section.className = 'bot-category-section';
+      section.dataset.categoryGroup = cat.group_name;
+
+      // Por padrão: as duas primeiras categorias ficam abertas, as demais colapsadas
+      const isExpanded = autoExpandAll || (idx < 2);
+      if (!isExpanded) {
+        section.classList.add('collapsed');
+      }
+
+      const header = document.createElement('div');
+      header.className = 'category-section-header';
+      header.setAttribute('role', 'button');
+      header.setAttribute('tabindex', '0');
+      header.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+
+      const catIcon = cat.icon || '♟️';
+      const catTitle = cat.label || cat.group_name;
+      const catSub = cat.description || (cat.min_elo ? `Elo ${cat.min_elo} - ${cat.max_elo}` : `${catBots.length} bots disponíveis`);
+
+      header.innerHTML = `
+        <div class="cat-header-left">
+          <span class="cat-header-icon">${catIcon}</span>
+          <div class="cat-header-titles">
+            <span class="cat-header-title">${catTitle}</span>
+            <span class="cat-header-sub">${catSub}</span>
           </div>
-          <p class="bot-bio-snippet">${bot.bio || 'Desafie este bot oficial em GymArena.'}</p>
         </div>
-        <button class="bot-play-btn-mini" title="Desafiar ${bot.name}">▶</button>
+        <div class="cat-header-right">
+          <span class="cat-count-badge">${catBots.length}</span>
+          <span class="cat-chevron">▼</span>
+        </div>
       `;
 
-      card.addEventListener('click', () => {
-        this.openChallengeDrawer(bot);
+      header.addEventListener('click', () => {
+        const wasCollapsed = section.classList.contains('collapsed');
+        section.classList.toggle('collapsed');
+        header.setAttribute('aria-expanded', wasCollapsed ? 'true' : 'false');
       });
 
-      this.botsListContainer.appendChild(card);
+      const grid = document.createElement('div');
+      grid.className = 'category-bots-grid';
+
+      catBots.forEach(rawBot => {
+        const bot = {
+          id: rawBot.username || rawBot.name,
+          name: rawBot.name,
+          elo: parseInt(rawBot.rating || rawBot.elo || 1500, 10),
+          category: rawBot.group || rawBot.category || cat.group_name,
+          avatar: rawBot.avatar || `/assets/avatars/${rawBot.name}.png`,
+          bio: rawBot.description || rawBot.bio || 'Bot oficial do app mobile.',
+          greeting: rawBot.greeting || `Olá, eu sou ${rawBot.name}!`,
+          is_neural: Boolean(rawBot.is_neural)
+        };
+
+        const card = document.createElement('div');
+        card.className = `bot-card-item ${bot.name === 'Neural_Bot' ? 'featured-bot' : ''}`;
+        card.innerHTML = `
+          <div class="bot-avatar-container">
+            <img src="${bot.avatar}" alt="" class="bot-avatar-img" onerror="this.onerror=null; this.src='/assets/avatars/default.png'">
+            <span class="bot-elo-badge">${bot.elo}</span>
+          </div>
+          <div class="bot-meta-info">
+            <div class="bot-name-row">
+              <span class="bot-title-name">${bot.name}</span>
+              <span class="bot-category-tag">• ${bot.category}</span>
+            </div>
+            <p class="bot-bio-snippet">${bot.bio}</p>
+          </div>
+          <button class="bot-play-btn-mini" title="Desafiar ${bot.name}">▶</button>
+        `;
+
+        card.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openChallengeDrawer(bot);
+        });
+
+        grid.appendChild(card);
+      });
+
+      section.appendChild(header);
+      section.appendChild(grid);
+      this.botsListContainer.appendChild(section);
     });
+  }
+
+  renderBotsList(bots) {
+    const groups = {};
+    bots.forEach(b => {
+      const g = b.category || 'Oficiais';
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(b);
+    });
+    const fakeCats = Object.entries(groups).map(([g, list]) => ({
+      group_name: g,
+      label: g,
+      icon: '♟️',
+      bots: list
+    }));
+    this.renderCategorizedBots(fakeCats, true);
   }
 
   // ============================================================================
@@ -593,6 +734,9 @@ class GymArenaApp {
             setTimeout(() => this.triggerBotStep(), 600);
           }
         }
+
+        // Alterna aba lateral para visualização dos lances da partida
+        this.switchSidebarTab('match');
       }
     } catch (err) {
       console.error("Erro ao iniciar partida:", err);
@@ -620,6 +764,15 @@ class GymArenaApp {
     this.meName.textContent = bottomPlayer.name || 'Jogador';
     this.meElo.textContent = bottomPlayer.elo || 3200;
     this.meRoleBadge.textContent = bottomPlayer.type === 'human' ? 'VOCÊ' : (bottomPlayer.type === 'neural' ? 'NEURAL AI' : 'BOT');
+
+    // Atualiza Card de Resumo do Adversário na Barra Lateral
+    if (this.summaryOppAvatar) this.summaryOppAvatar.src = topPlayer.avatar || '/assets/avatars/default.png';
+    if (this.summaryOppName) this.summaryOppName.textContent = topPlayer.name || 'Oponente';
+    if (this.summaryOppElo) this.summaryOppElo.textContent = topPlayer.elo || 1500;
+    if (this.summaryOppBio) {
+      const matched = this.bots.find(b => b.name === topPlayer.name);
+      this.summaryOppBio.textContent = matched ? matched.bio : 'Bot oficial do app mobile.';
+    }
   }
 
   // ============================================================================
@@ -965,6 +1118,77 @@ class GymArenaApp {
     this.telEvalScore.textContent = (evalScore >= 0 ? `+${evalScore.toFixed(2)}` : evalScore.toFixed(2));
     this.telConfidence.textContent = `${Math.min(100, Math.max(65, Math.round(75 + Math.abs(evalScore) * 6)))}%`;
     this.telModeDisplay.textContent = this.mctsActive ? `MCTS ${this.selectedSims}` : 'FAST NET';
+
+    // Atualiza tabela de lances SAN e telemetria na barra lateral
+    this.updateMovesTable();
+    this.updateSidebarTelemetry();
+  }
+
+  updateMovesTable() {
+    if (!this.movesTableBody || !this.gameState) return;
+    const history = this.gameState.move_history || [];
+    if (this.movesCountBadge) {
+      this.movesCountBadge.textContent = `${history.length} ${history.length === 1 ? 'lance' : 'lances'}`;
+    }
+
+    if (history.length === 0) {
+      this.movesTableBody.innerHTML = `
+        <tr>
+          <td colspan="3" class="moves-empty-row">Nenhum lance efetuado ainda.</td>
+        </tr>
+      `;
+      return;
+    }
+
+    let html = '';
+    for (let i = 0; i < history.length; i += 2) {
+      const moveNum = Math.floor(i / 2) + 1;
+      const whiteMove = history[i] || '';
+      const blackMove = history[i + 1] || '';
+
+      const isLatestWhite = (i === history.length - 1);
+      const isLatestBlack = (i + 1 === history.length - 1);
+
+      html += `
+        <tr>
+          <td class="move-num-cell">${moveNum}.</td>
+          <td class="move-san-cell ${isLatestWhite ? 'latest-move' : ''}">${whiteMove}</td>
+          <td class="move-san-cell ${isLatestBlack ? 'latest-move' : ''}">${blackMove}</td>
+        </tr>
+      `;
+    }
+
+    this.movesTableBody.innerHTML = html;
+    if (this.movesTableScroll) {
+      this.movesTableScroll.scrollTop = this.movesTableScroll.scrollHeight;
+    }
+  }
+
+  updateSidebarTelemetry() {
+    if (!this.gameState) return;
+    const state = this.gameState;
+    const evalScore = state.eval_score !== undefined ? state.eval_score : (state.eval || 0.0);
+
+    if (this.sideTelEval) {
+      this.sideTelEval.textContent = (evalScore >= 0 ? `+${evalScore.toFixed(2)}` : evalScore.toFixed(2));
+    }
+    if (this.sideTelConf) {
+      this.sideTelConf.textContent = `${Math.min(100, Math.max(65, Math.round(75 + Math.abs(evalScore) * 6)))}%`;
+    }
+    if (this.sideTelVisits) {
+      this.sideTelVisits.textContent = this.mctsActive ? `${this.selectedSims} nós` : '1 nó';
+    }
+    if (this.sideTelEngineTag) {
+      this.sideTelEngineTag.textContent = this.mctsActive ? `MCTS ${this.selectedSims}` : 'FAST NET';
+    }
+    if (this.sideTelMove) {
+      let lastMoveStr = '--';
+      if (state.last_move) {
+        if (typeof state.last_move === 'string') lastMoveStr = state.last_move;
+        else if (state.last_move.san) lastMoveStr = state.last_move.san;
+      }
+      this.sideTelMove.textContent = lastMoveStr;
+    }
   }
 
   renderCaptured(container, piecesList, colorPrefix) {
@@ -982,6 +1206,9 @@ class GymArenaApp {
   showBotSpeech(text) {
     if (!text) return;
     this.speechText.textContent = text;
+    if (this.sidebarSpeechText) {
+      this.sidebarSpeechText.textContent = text;
+    }
     this.botSpeechBubble.style.display = 'block';
 
     if (this.speechTimeout) clearTimeout(this.speechTimeout);

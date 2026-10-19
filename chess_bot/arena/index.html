@@ -58,36 +58,132 @@
     <main class="app-screens-viewport">
 
       <!-- =================================================================== -->
-      <!-- TELA 1: CATÁLOGO OFICIAL DE BOTS (LISTAGEM MOBILE)                  -->
+      <!-- TELA 1: CATÁLOGO OFICIAL DE BOTS & PAINEL LATERAL                  -->
       <!-- =================================================================== -->
       <section class="screen-view" id="catalogScreen">
-        <!-- Barra de Busca Rápida -->
-        <div class="search-bar-wrap" id="searchBarWrap">
-          <span class="search-glass-icon">🔍</span>
-          <input type="text" id="botSearchInput" class="mobile-search-input" placeholder="Buscar bot por nome, elo ou estilo...">
-          <button class="search-clear-btn hidden" id="btnClearSearch">&times;</button>
+
+        <!-- Abas Superiores do Painel Lateral (Bots vs Partida) -->
+        <div class="sidebar-top-tabs" id="sidebarTopTabs">
+          <button class="sidebar-tab active" id="tabViewBots" title="Ver Catálogo de Bots">
+            <span class="tab-icon">🤖</span>
+            <span>Bots Oficiais</span>
+            <span class="tab-badge" id="catalogBadgeCount">218</span>
+          </button>
+          <button class="sidebar-tab" id="tabViewMatch" title="Ver Lances e Telemetria da Partida">
+            <span class="tab-icon">📊</span>
+            <span>Partida & Lances</span>
+          </button>
         </div>
 
-        <!-- Abas de Categorias Estilo Pills Horizontais do App Mobile -->
-        <div class="category-pills-scroll">
-          <div class="category-pills" id="categoryTabs">
-            <button class="cat-pill active" data-category="all">Todos (218)</button>
-            <button class="cat-pill highlight-pill" data-category="🧠 Neural_Bot 3200">🧠 Neural_Bot (3200)</button>
-            <button class="cat-pill" data-category="The Cryptids">The Cryptids</button>
-            <button class="cat-pill" data-category="Beginner">Iniciantes</button>
-            <button class="cat-pill" data-category="Intermediate">Intermediários</button>
-            <button class="cat-pill" data-category="Advanced">Avançados</button>
-            <button class="cat-pill" data-category="Master">Mestres</button>
-            <button class="cat-pill" data-category="Top Players">Grandes Mestres</button>
-            <button class="cat-pill" data-category="Creators">Criadores</button>
-            <button class="cat-pill" data-category="Engine">Komodo Engine</button>
+        <!-- Conteúdo 1: Catálogo com Busca, Categorias e Accordions -->
+        <div class="sidebar-tab-content active-content" id="sidebarBotsContent">
+          <!-- Barra de Busca Rápida -->
+          <div class="search-bar-wrap" id="searchBarWrap">
+            <span class="search-glass-icon">🔍</span>
+            <input type="text" id="botSearchInput" class="mobile-search-input" placeholder="Buscar bot por nome, elo ou estilo...">
+            <button class="search-clear-btn hidden" id="btnClearSearch">&times;</button>
+          </div>
+
+          <!-- Abas de Categorias Estilo Pills Horizontais -->
+          <div class="category-pills-scroll">
+            <div class="category-pills" id="categoryTabs">
+              <button class="cat-pill active" data-category="all">Todos (218)</button>
+              <button class="cat-pill highlight-pill" data-category="🧠 Neural_Bot 3200">🧠 Neural_Bot</button>
+              <button class="cat-pill" data-category="The Cryptids">The Cryptids</button>
+              <button class="cat-pill" data-category="New to Chess">Iniciantes</button>
+              <button class="cat-pill" data-category="Beginner">Principiantes</button>
+              <button class="cat-pill" data-category="Intermediate">Intermediários</button>
+              <button class="cat-pill" data-category="Advanced">Avançados</button>
+              <button class="cat-pill" data-category="Master">Mestres</button>
+              <button class="cat-pill" data-category="Top Players">Grandes Mestres</button>
+              <button class="cat-pill" data-category="Creators">Criadores</button>
+              <button class="cat-pill" data-category="Athletes">Atletas</button>
+              <button class="cat-pill" data-category="Engine">Komodo Engine</button>
+            </div>
+          </div>
+
+          <!-- Container com Categorias Aninhadas em Accordion -->
+          <div class="bots-mobile-list" id="botsListContainer">
+            <!-- Categorias e cards gerados dinamicamente via app.js -->
           </div>
         </div>
 
-        <!-- Lista Vertical de Cards dos Bots Mobile -->
-        <div class="bots-mobile-list" id="botsListContainer">
-          <!-- Cards gerados via app.js -->
+        <!-- Conteúdo 2: Painel de Lances e Telemetria da Partida -->
+        <div class="sidebar-tab-content hidden" id="sidebarMatchContent">
+          <div class="match-moves-panel" id="matchMovesPanel">
+            <!-- Card de Resumo do Adversário -->
+            <div class="opp-summary-card" id="oppSummaryCard">
+              <div class="opp-summary-left">
+                <img src="/assets/avatars/Nelson.png" alt="" id="summaryOppAvatar" class="summary-avatar-img" onerror="this.onerror=null; this.src='/assets/avatars/default.png'">
+                <div class="summary-text-box">
+                  <div class="summary-name-row">
+                    <span class="summary-player-name" id="summaryOppName">Nelson</span>
+                    <span class="elo-chip" id="summaryOppElo">1300</span>
+                  </div>
+                  <p class="summary-bot-bio" id="summaryOppBio">Adora tirar a Dama cedo na partida para pressionar.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Balão de Fala do Bot no Painel -->
+            <div class="sidebar-bot-speech" id="sidebarBotSpeech">
+              <span class="speech-quote-icon">💬</span>
+              <p class="speech-quote-text" id="sidebarSpeechText">Prepare-se para o cálculo.</p>
+            </div>
+
+            <!-- Tabela de Histórico de Lances Notação SAN (e4 e5, Nf3 Nc6) -->
+            <div class="moves-history-box">
+              <div class="moves-box-header">
+                <span class="moves-title">📜 Histórico de Lances (SAN)</span>
+                <span class="moves-count-badge" id="movesCountBadge">0 lances</span>
+              </div>
+              <div class="moves-table-scroll" id="movesTableScroll">
+                <table class="chess-moves-table" id="movesTable">
+                  <thead>
+                    <tr>
+                      <th style="width: 25%">#</th>
+                      <th style="width: 37%">Brancas</th>
+                      <th style="width: 38%">Pretas</th>
+                    </tr>
+                  </thead>
+                  <tbody id="movesTableBody">
+                    <tr>
+                      <td colspan="3" class="moves-empty-row">Nenhum lance efetuado ainda.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Telemetria Neural Detalhada -->
+            <div class="sidebar-telemetry-card">
+              <div class="sidebar-tel-header">
+                <span>🧠 Telemetria do Motor Neural</span>
+                <span class="sidebar-tel-engine" id="sideTelEngineTag">MCTS 3200</span>
+              </div>
+              <div class="sidebar-tel-grid">
+                <div class="side-tel-item">
+                  <span class="side-tel-label">Avaliação:</span>
+                  <span class="side-tel-val" id="sideTelEval">+0.00</span>
+                </div>
+                <div class="side-tel-item">
+                  <span class="side-tel-label">Confiança:</span>
+                  <span class="side-tel-val" id="sideTelConf">100%</span>
+                </div>
+                <div class="side-tel-item">
+                  <span class="side-tel-label">Melhor Lance:</span>
+                  <span class="side-tel-val highlight" id="sideTelMove">--</span>
+                </div>
+                <div class="side-tel-item">
+                  <span class="side-tel-label">Nós MCTS:</span>
+                  <span class="side-tel-val" id="sideTelVisits">50 nós</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
+
       </section>
 
       <!-- =================================================================== -->
@@ -100,7 +196,7 @@
           <div class="player-hud-mobile opponent-hud" id="oppHud">
             <div class="player-left-group">
               <div class="avatar-ring-wrap">
-                <img src="/assets/avatars/Nelson.png" alt="Oponente" class="avatar-mobile-img" id="oppAvatar">
+                <img src="/assets/avatars/Nelson.png" alt="" class="avatar-mobile-img" id="oppAvatar" onerror="this.onerror=null; this.src='/assets/avatars/default.png'">
                 <span class="active-turn-ring" id="oppTurnRing"></span>
               </div>
               <div class="player-text-group">
@@ -142,7 +238,7 @@
           <div class="player-hud-mobile player-hud-bottom" id="meHud">
             <div class="player-left-group">
               <div class="avatar-ring-wrap">
-                <img src="/assets/avatars/neural_bot.png" alt="Jogador" class="avatar-mobile-img" id="meAvatar">
+                <img src="/assets/avatars/neural_bot.png" alt="" class="avatar-mobile-img" id="meAvatar" onerror="this.onerror=null; this.src='/assets/avatars/default.png'">
                 <span class="active-turn-ring" id="meTurnRing"></span>
               </div>
               <div class="player-text-group">
@@ -252,7 +348,7 @@
 
         <div class="drawer-bot-profile">
           <div class="drawer-avatar-wrap">
-            <img src="/assets/avatars/Nelson.png" alt="Bot" id="drawerBotAvatar" class="drawer-bot-avatar">
+            <img src="/assets/avatars/Nelson.png" alt="" id="drawerBotAvatar" class="drawer-bot-avatar" onerror="this.onerror=null; this.src='/assets/avatars/default.png'">
             <span class="drawer-bot-elo" id="drawerBotElo">1300</span>
           </div>
           <div class="drawer-bot-info">
