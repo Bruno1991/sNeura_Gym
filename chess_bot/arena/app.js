@@ -74,6 +74,7 @@ class GymArenaApp {
     this.isProcessingMove = false;
     this.speechTimeout = null;
     this.ws = null;
+    this.matchSessionId = 0;
 
     // Mapeamento de peças em caracteres para nomes de arquivos SVG
     this.pieceSvgMap = {
@@ -248,7 +249,7 @@ class GymArenaApp {
     this.duelSpeedSlider.addEventListener('input', (e) => {
       this.duelSpeed = parseInt(e.target.value, 10);
       this.duelSpeedVal.textContent = `${this.duelSpeed}ms`;
-      if (this.autoPlayInterval) {
+      if (this.autoPlayTimeout || this.autoPlayInterval) {
         this.restartAutoPlay();
       }
     });
@@ -473,7 +474,11 @@ class GymArenaApp {
   // TRANSIÇÕES DE TELA E PARTIDA
   // ============================================================================
   showCatalogScreen() {
+    this.matchSessionId++;
     this.stopAutoPlay();
+    this.isProcessingMove = false;
+    this.selectedSquare = null;
+    this.legalMovesForSelected = [];
     this.matchScreen.classList.add('hidden');
     this.catalogScreen.classList.remove('hidden');
     this.btnBackToCatalog.classList.add('hidden');
@@ -492,9 +497,14 @@ class GymArenaApp {
 
   async startMatch() {
     if (!this.selectedBot) return;
+    this.matchSessionId++;
+    const session = this.matchSessionId;
     this.closeChallengeDrawer();
     this.showMatchScreen();
     this.stopAutoPlay();
+    this.isProcessingMove = false;
+    this.selectedSquare = null;
+    this.legalMovesForSelected = [];
 
     const payload = {
       mode: this.selectedMode,
@@ -553,15 +563,19 @@ class GymArenaApp {
     // Se o humano joga de pretas, vira o tabuleiro
     this.isFlipped = (blackPlayer.type === 'human');
 
-    // Configura oponentes no HUD
-    this.oppAvatar.src = blackPlayer.avatar || '/assets/avatars/default.png';
-    this.oppName.textContent = blackPlayer.name || 'Oponente';
-    this.oppElo.textContent = blackPlayer.elo || 1500;
+    // Determina quem fica no topo (opp) e na base (me)
+    const topPlayer = this.isFlipped ? whitePlayer : blackPlayer;
+    const bottomPlayer = this.isFlipped ? blackPlayer : whitePlayer;
 
-    this.meAvatar.src = whitePlayer.avatar || '/assets/avatars/neural_bot.png';
-    this.meName.textContent = whitePlayer.name || 'Jogador';
-    this.meElo.textContent = whitePlayer.elo || 3200;
-    this.meRoleBadge.textContent = whitePlayer.type === 'human' ? 'VOCÊ' : (whitePlayer.type === 'neural' ? 'NEURAL AI' : 'BOT');
+    // Configura oponentes no HUD
+    this.oppAvatar.src = topPlayer.avatar || '/assets/avatars/default.png';
+    this.oppName.textContent = topPlayer.name || 'Oponente';
+    this.oppElo.textContent = topPlayer.elo || 1500;
+
+    this.meAvatar.src = bottomPlayer.avatar || (bottomPlayer.type === 'neural' ? '/assets/avatars/neural_bot.png' : '/assets/avatars/default.png');
+    this.meName.textContent = bottomPlayer.name || 'Jogador';
+    this.meElo.textContent = bottomPlayer.elo || 3200;
+    this.meRoleBadge.textContent = bottomPlayer.type === 'human' ? 'VOCÊ' : (bottomPlayer.type === 'neural' ? 'NEURAL AI' : 'BOT');
   }
 
   // ============================================================================
@@ -770,6 +784,7 @@ class GymArenaApp {
   }
 
   async triggerBotStep() {
+    const session = this.matchSessionId;
     if (!this.gameState || this.gameState.is_game_over || this.isProcessingMove) return;
     this.isProcessingMove = true;
 
@@ -779,6 +794,8 @@ class GymArenaApp {
         throw new Error(`HTTP ${res.status}`);
       }
       const data = await res.json();
+      if (this.matchSessionId !== session) return;
+
       if (data.success || data.status === 'success') {
         const soundKey = data.sound || (data.state && data.state.last_move && data.state.last_move.sound) || 'move-opponent';
         this.audio.play(soundKey);
@@ -796,11 +813,10 @@ class GymArenaApp {
       }
     } catch (err) {
       console.error("Erro no lance do bot:", err);
-      if (this.selectedMode === 'neural_vs_bot' && this.gameState && !this.gameState.is_game_over) {
-        this.scheduleNextDuelStep(1000);
-      }
     } finally {
-      this.isProcessingMove = false;
+      if (this.matchSessionId === session) {
+        this.isProcessingMove = false;
+      }
     }
   }
 
@@ -815,14 +831,16 @@ class GymArenaApp {
 
   scheduleNextDuelStep(delay = null) {
     this.stopAutoPlay();
+    const session = this.matchSessionId;
     if (!this.gameState || this.gameState.is_game_over) return;
     if (this.selectedMode !== 'neural_vs_bot') return;
 
     const waitTime = (delay !== null) ? delay : this.duelSpeed;
     this.autoPlayTimeout = setTimeout(async () => {
+      if (this.matchSessionId !== session) return;
       if (!this.gameState || this.gameState.is_game_over) return;
       await this.triggerBotStep();
-      if (this.selectedMode === 'neural_vs_bot' && this.gameState && !this.gameState.is_game_over) {
+      if (this.matchSessionId === session && this.selectedMode === 'neural_vs_bot' && this.gameState && !this.gameState.is_game_over) {
         this.scheduleNextDuelStep();
       }
     }, waitTime);
@@ -938,14 +956,14 @@ class GymArenaApp {
     let trophy = "🤝";
 
     if (result === '1-0') {
-      const isMeWinner = (whitePlayer.type === 'human');
-      title = isMeWinner ? "Vitória!" : "Vitória das Brancas";
+      const isMeWinner = (whitePlayer.type === 'human' || (whitePlayer.type === 'neural' && this.selectedMode === 'neural_vs_bot'));
+      title = isMeWinner ? "Vitória!" : `Vitória das Brancas (${whitePlayer.name || 'Brancas'})`;
       desc = `Vitória de ${whitePlayer.name || 'Brancas'}`;
       trophy = "🏆";
       this.audio.play(isMeWinner ? 'game-win' : 'game-lose');
     } else if (result === '0-1') {
-      const isMeWinner = (blackPlayer.type === 'human');
-      title = isMeWinner ? "Vitória!" : "Vitória das Pretas";
+      const isMeWinner = (blackPlayer.type === 'human' || (blackPlayer.type === 'neural' && this.selectedMode === 'neural_vs_bot'));
+      title = isMeWinner ? "Vitória!" : `Vitória das Pretas (${blackPlayer.name || 'Pretas'})`;
       desc = `Vitória de ${blackPlayer.name || 'Pretas'}`;
       trophy = "🏆";
       this.audio.play(isMeWinner ? 'game-win' : 'game-lose');
@@ -968,13 +986,15 @@ class GymArenaApp {
       const res = await fetch('/api/match/hint');
       const data = await res.json();
       if (data.hint) {
-        const from = data.hint.slice(0, 2);
-        const to = data.hint.slice(2, 4);
+        const uci = typeof data.hint === 'string' ? data.hint : (data.hint.uci || '');
+        const from = data.hint.from || uci.slice(0, 2);
+        const to = data.hint.to || uci.slice(2, 4);
+        const san = data.hint.san || uci;
         const fromEl = document.querySelector(`[data-square="${from}"]`);
         const toEl = document.querySelector(`[data-square="${to}"]`);
         if (fromEl) fromEl.classList.add('selected-piece');
         if (toEl) toEl.classList.add('highlight-move-to');
-        this.showBotSpeech(`💡 Dica Tática: lance recomendado ${data.hint}`);
+        this.showBotSpeech(`💡 Dica Tática: lance recomendado ${san}`);
       }
     } catch (err) {
       console.warn("Erro ao buscar dica:", err);

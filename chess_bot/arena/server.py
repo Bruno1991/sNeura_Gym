@@ -10,10 +10,12 @@ Interface de servidor FastAPI para a GymArena:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import random
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -66,6 +68,34 @@ if ASSETS_DIR.is_dir():
     app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 
+def resolve_bot_avatar(bot_name: Optional[str], group_name: str = "") -> str:
+    """Resolve caminho para o avatar do bot existente ou fallback seguro para default.png."""
+    if not bot_name:
+        return "/assets/avatars/default.png"
+    if bot_name == "Neural_Bot":
+        return "/assets/avatars/neural_bot.png"
+
+    avatars_dir = CURRENT_DIR / "assets" / "avatars"
+    exact = avatars_dir / f"{bot_name}.png"
+    if exact.is_file():
+        return f"/assets/avatars/{bot_name}.png"
+
+    # Busca por prefixo ou correspondência insensível a maiúsculas/minúsculas
+    low = bot_name.lower()
+    for f in avatars_dir.glob("*.png"):
+        stem_low = f.stem.lower()
+        if stem_low == low or stem_low.startswith(low + "-"):
+            return f"/assets/avatars/{f.name}"
+
+    # Fallback por grupo (ex: Beginner.png, Intermediate.png, Advanced.png)
+    if group_name:
+        for f in avatars_dir.glob("*.png"):
+            if f.stem.lower() == group_name.lower():
+                return f"/assets/avatars/{f.name}"
+
+    return "/assets/avatars/default.png"
+
+
 # ==============================================================================
 # GERENCIADOR DE PARTIDAS (MATCH MANAGER)
 # ==============================================================================
@@ -73,6 +103,8 @@ class MatchManager:
     """Controlador de estado da partida na GymArena."""
 
     def __init__(self):
+        self.lock = threading.Lock()
+        self.match_generation: int = 0
         self.board = chess.Board()
         self.board_stack: List[str] = [self.board.fen()]
 
@@ -137,31 +169,33 @@ class MatchManager:
             print(f"[!] Erro ao inicializar agente neural: {e}")
 
     def reset_game(self):
-        """Reinicia o tabuleiro para novo jogo."""
-        self.board.reset()
-        self.board_stack = [self.board.fen()]
-        self.move_history.clear()
-        self.last_move = None
-        self.eval_score = 0.0
-        self.neural_info = {}
-        self.online_trained_notice = None
+        """Reinicia o tabuleiro para novo jogo de forma thread-safe."""
+        with self.lock:
+            self.match_generation += 1
+            self.board.reset()
+            self.board_stack = [self.board.fen()]
+            self.move_history.clear()
+            self.last_move = None
+            self.eval_score = 0.0
+            self.neural_info = {}
+            self.online_trained_notice = None
 
-        if self.learner:
-            self.learner.start_game()
+            if self.learner:
+                self.learner.start_game()
 
-        # Instanciar motores conforme os tipos configurados
-        if self.white_player_type == "bot":
-            self.active_white_engine = ChessBot(rate=self.white_bot_elo, bot_name=self.white_bot_name)
-        else:
-            self.active_white_engine = None
+            # Instanciar motores conforme os tipos configurados
+            if self.white_player_type == "bot":
+                self.active_white_engine = ChessBot(rate=self.white_bot_elo, bot_name=self.white_bot_name)
+            else:
+                self.active_white_engine = None
 
-        if self.black_player_type == "bot":
-            self.active_black_engine = ChessBot(rate=self.black_bot_elo, bot_name=self.black_bot_name)
-        else:
-            self.active_black_engine = None
+            if self.black_player_type == "bot":
+                self.active_black_engine = ChessBot(rate=self.black_bot_elo, bot_name=self.black_bot_name)
+            else:
+                self.active_black_engine = None
 
-        # Saudação inicial do bot adversário
-        self._emit_initial_greeting()
+            # Saudação inicial do bot adversário
+            self._emit_initial_greeting()
 
     def _emit_initial_greeting(self):
         bot_engine = self.active_black_engine or self.active_white_engine
@@ -173,7 +207,7 @@ class MatchManager:
                 self.current_speech = {
                     "text": greeting,
                     "speaker": bot_name or "Bot",
-                    "avatar": f"/assets/avatars/{bot_name}.png",
+                    "avatar": resolve_bot_avatar(bot_name),
                     "side": side,
                 }
             else:
@@ -183,7 +217,8 @@ class MatchManager:
 
     def get_state(self) -> Dict[str, Any]:
         """Gera o estado completo sincronizado com a interface GymArena Mobile."""
-        piece_values = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
+        with self.lock:
+            piece_values = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
         piece_symbols = {chess.PAWN: 'p', chess.KNIGHT: 'n', chess.BISHOP: 'b', chess.ROOK: 'r', chess.QUEEN: 'q'}
 
         starting_pieces = {chess.PAWN: 8, chess.KNIGHT: 2, chess.BISHOP: 2, chess.ROOK: 2, chess.QUEEN: 1}
@@ -253,13 +288,13 @@ class MatchManager:
                 "type": self.white_player_type,
                 "name": "Neural_Bot" if self.white_player_type == "neural" else (self.white_bot_name or "Você"),
                 "elo": 3200 if self.white_player_type == "neural" else (self.white_bot_elo if self.white_player_type == "bot" else 1500),
-                "avatar": "/assets/avatars/neural_bot.png" if self.white_player_type == "neural" else (f"/assets/avatars/{self.white_bot_name}.png" if self.white_player_type == "bot" else "/assets/avatars/human.png")
+                "avatar": "/assets/avatars/neural_bot.png" if self.white_player_type == "neural" else (resolve_bot_avatar(self.white_bot_name) if self.white_player_type == "bot" else "/assets/avatars/human.png")
             },
             "black_player": {
                 "type": self.black_player_type,
                 "name": "Neural_Bot" if self.black_player_type == "neural" else (self.black_bot_name or "Você"),
                 "elo": 3200 if self.black_player_type == "neural" else (self.black_bot_elo if self.black_player_type == "bot" else 1500),
-                "avatar": "/assets/avatars/neural_bot.png" if self.black_player_type == "neural" else (f"/assets/avatars/{self.black_bot_name}.png" if self.black_player_type == "bot" else "/assets/avatars/human.png")
+                "avatar": "/assets/avatars/neural_bot.png" if self.black_player_type == "neural" else (resolve_bot_avatar(self.black_bot_name) if self.black_player_type == "bot" else "/assets/avatars/human.png")
             },
             "neural_mode": self.neural_mode,
             "mcts_sims": self.neural_mcts_sims,
@@ -270,64 +305,65 @@ class MatchManager:
 
     def play_move(self, move: chess.Move) -> bool:
         """Aplica o lance ao tabuleiro e calcula os eventos e reações."""
-        if move not in self.board.legal_moves:
-            return False
+        with self.lock:
+            if move not in self.board.legal_moves:
+                return False
 
-        mover_color = self.board.turn
-        is_neural = (
-            (mover_color == chess.WHITE and self.white_player_type == "neural") or
-            (mover_color == chess.BLACK and self.black_player_type == "neural")
-        )
+            mover_color = self.board.turn
+            is_neural = (
+                (mover_color == chess.WHITE and self.white_player_type == "neural") or
+                (mover_color == chess.BLACK and self.black_player_type == "neural")
+            )
 
-        from_sq = chess.square_name(move.from_square)
-        to_sq = chess.square_name(move.to_square)
-        san = self.board.san(move)
+            from_sq = chess.square_name(move.from_square)
+            to_sq = chess.square_name(move.to_square)
+            san = self.board.san(move)
 
-        is_capture = self.board.is_capture(move)
-        is_castle = self.board.is_castling(move)
-        is_promo = (move.promotion is not None)
+            is_capture = self.board.is_capture(move)
+            is_castle = self.board.is_castling(move)
+            is_promo = (move.promotion is not None)
 
-        if self.learner and ("neural" in (self.white_player_type, self.black_player_type)):
-            self.learner.record_move(self.board, move, is_neural=is_neural)
+            if self.learner and ("neural" in (self.white_player_type, self.black_player_type)):
+                self.learner.record_move(self.board, move, is_neural=is_neural)
 
-        self.board.push(move)
-        self.board_stack.append(self.board.fen())
-        self.move_history.append(san)
+            self.board.push(move)
+            self.board_stack.append(self.board.fen())
+            self.move_history.append(san)
 
-        sound_type = "move"
-        if self.board.is_check():
-            sound_type = "check"
-        elif is_capture:
-            sound_type = "capture"
-        elif is_castle:
-            sound_type = "castle"
-        elif is_promo:
-            sound_type = "promote"
+            sound_type = "move"
+            if self.board.is_check():
+                sound_type = "check"
+            elif is_capture:
+                sound_type = "capture"
+            elif is_castle:
+                sound_type = "castle"
+            elif is_promo:
+                sound_type = "promote"
 
-        self.last_move = {
-            "from": from_sq,
-            "to": to_sq,
-            "san": san,
-            "sound": sound_type,
-            "color": "w" if mover_color == chess.WHITE else "b",
-        }
+            self.last_move = {
+                "from": from_sq,
+                "to": to_sq,
+                "san": san,
+                "sound": sound_type,
+                "color": "w" if mover_color == chess.WHITE else "b",
+            }
 
-        # Atualizar fala contextual do bot scriptado se aplicável
-        self._update_speech_reaction(mover_color, move, was_capture=is_capture)
+            # Atualizar fala contextual do bot scriptado se aplicável
+            self._update_speech_reaction(mover_color, move, was_capture=is_capture)
 
-        # Aprendizado online ao fim do jogo
-        if self.board.is_game_over(claim_draw=True) and ("neural" in (self.white_player_type, self.black_player_type)):
-            neural_is_white = (self.white_player_type == "neural")
-            opp_name = self.black_bot_name if neural_is_white else self.white_bot_name
-            if self.learner:
-                res = self.learner.learn_from_completed_game(
-                    self.board,
-                    neural_is_white=neural_is_white,
-                    opponent_name=opp_name or "Adversário",
-                )
-                self.online_trained_notice = res
+            # Aprendizado online ao fim do jogo
+            if self.board.is_game_over(claim_draw=True) and ("neural" in (self.white_player_type, self.black_player_type)):
+                neural_is_white = (self.white_player_type == "neural")
+                opp_name = self.black_bot_name if neural_is_white else self.white_bot_name
+                if self.learner:
+                    res = self.learner.learn_from_completed_game(
+                        self.board,
+                        neural_is_white=neural_is_white,
+                        opponent_name=opp_name or "Adversário",
+                    )
+                    self.online_trained_notice = res
 
-        return True
+            return True
 
     def _update_speech_reaction(self, mover_color: chess.Color, last_move: chess.Move, was_capture: bool = False):
         """Dispara falas contextuais autênticas dos bots do Chess.com."""
@@ -356,7 +392,7 @@ class MatchManager:
             self.current_speech = {
                 "text": phrase,
                 "speaker": bot_name or "Bot",
-                "avatar": f"/assets/avatars/{bot_name}.png",
+                "avatar": resolve_bot_avatar(bot_name),
                 "side": bot_side,
             }
 
@@ -380,75 +416,106 @@ class MatchManager:
         return True
 
     def compute_next_bot_move(self) -> Optional[chess.Move]:
-        """Calcula a jogada da IA da vez (Neural_Bot ou Scripted Bot)."""
-        if self.board.is_game_over(claim_draw=True):
-            return None
+        """Calcula a jogada da IA da vez de forma não bloqueante e com descarte de geração defasada."""
+        with self.lock:
+            gen = self.match_generation
+            if self.board.is_game_over(claim_draw=True):
+                return None
 
-        is_white_turn = (self.board.turn == chess.WHITE)
-        current_type = self.white_player_type if is_white_turn else self.black_player_type
+            is_white_turn = (self.board.turn == chess.WHITE)
+            current_type = self.white_player_type if is_white_turn else self.black_player_type
 
-        if current_type == "human":
-            return None
+            if current_type == "human":
+                return None
+
+            board_snapshot = self.board.copy()
+            white_bot_elo = self.white_bot_elo
+            black_bot_elo = self.black_bot_elo
+            white_bot_name = self.white_bot_name
+            black_bot_name = self.black_bot_name
+            neural_mode = self.neural_mode
+            mcts_sims = self.neural_mcts_sims
 
         try:
             # 1. VEZ DO NEURAL_BOT
             if current_type == "neural":
                 if not self.neural_agent:
-                    return list(self.board.legal_moves)[0] if self.board.legal_moves else None
+                    legal = list(board_snapshot.legal_moves)
+                    return legal[0] if legal else None
 
-                use_mcts_flag = (self.neural_mode == "mcts")
-                sims = self.neural_mcts_sims if use_mcts_flag else 0
+                use_mcts_flag = (neural_mode == "mcts")
+                sims = mcts_sims if use_mcts_flag else 0
                 move, info = self.neural_agent.get_best_move(
-                    self.board,
+                    board_snapshot,
                     use_mcts=use_mcts_flag,
                     num_simulations=sims,
                 )
 
                 val = info.get("value", info.get("root_value", 0.0))
                 raw_eval = val * 4.0
-                self.eval_score = round(raw_eval if is_white_turn else -raw_eval, 2)
+                eval_score = round(raw_eval if is_white_turn else -raw_eval, 2)
 
-                self.neural_info = {
+                neural_info = {
                     "source": info.get("source", "mcts_search" if use_mcts_flag else "neural_policy"),
-                    "visits": info.get("best_move_visits", self.neural_mcts_sims if use_mcts_flag else 1),
+                    "visits": info.get("best_move_visits", mcts_sims if use_mcts_flag else 1),
                     "depth": info.get("depth_reached", 4),
                     "confidence": round(info.get("probability", 1.0) * 100, 1),
-                    "san": info.get("san", self.board.san(move) if move else None),
+                    "san": info.get("san", board_snapshot.san(move) if move else None),
                     "top_candidates": info.get("top_candidates", []),
                 }
-                return move
+
+                with self.lock:
+                    if gen != self.match_generation:
+                        return None
+                    self.eval_score = eval_score
+                    self.neural_info = neural_info
+                    return move
 
             # 2. VEZ DO SCRIPTED BOT (CHESS.COM)
             if current_type == "bot":
-                engine = self.active_white_engine if is_white_turn else self.active_black_engine
-                if not engine:
-                    engine = ChessBot(rate=self.white_bot_elo if is_white_turn else self.black_bot_elo)
+                engine = ChessBot(
+                    rate=white_bot_elo if is_white_turn else black_bot_elo,
+                    bot_name=white_bot_name if is_white_turn else black_bot_name
+                )
 
-                move, info = engine.get_best_move(self.board)
+                move, info = engine.get_best_move(board_snapshot)
                 score_cp = info.get("score_cp", 0)
                 score_white = (score_cp if is_white_turn else -score_cp) / 100.0
-                self.eval_score = round(score_white, 2)
+                eval_score = round(score_white, 2)
 
-                self.neural_info = {
+                neural_info = {
                     "source": info.get("source", "chess_com_engine"),
                     "depth": info.get("depth", 2),
                     "book": info.get("book", None),
-                    "san": info.get("san", self.board.san(move) if move else None),
+                    "san": info.get("san", board_snapshot.san(move) if move else None),
                 }
-                return move
+
+                with self.lock:
+                    if gen != self.match_generation:
+                        return None
+                    self.eval_score = eval_score
+                    self.neural_info = neural_info
+                    return move
+
         except Exception as e:
             print(f"[!] Erro ao computar lance da IA ({current_type}): {e}")
-            legal = list(self.board.legal_moves)
-            return legal[0] if legal else None
+            with self.lock:
+                if gen != self.match_generation:
+                    return None
+                legal = list(self.board.legal_moves)
+                return legal[0] if legal else None
 
     def get_hint_move(self) -> Optional[Dict[str, Any]]:
-        if not self.neural_agent or self.board.is_game_over(claim_draw=True):
-            return None
-        move, info = self.neural_agent.get_best_move(self.board, use_mcts=True, num_simulations=40)
+        with self.lock:
+            if not self.neural_agent or self.board.is_game_over(claim_draw=True):
+                return None
+            board_snapshot = self.board.copy()
+
+        move, info = self.neural_agent.get_best_move(board_snapshot, use_mcts=True, num_simulations=35)
         if move:
             return {
                 "uci": move.uci(),
-                "san": self.board.san(move),
+                "san": board_snapshot.san(move),
                 "from": chess.square_name(move.from_square),
                 "to": chess.square_name(move.to_square),
                 "confidence": round(info.get("probability", 1.0) * 100, 1),
@@ -559,7 +626,7 @@ def list_available_bots():
                         "description": b.get("bio", b.get("description", "")),
                         "greeting": greeting,
                         "book": b.get("book", "balanced"),
-                        "avatar": f"/assets/avatars/{b_name}.png",
+                        "avatar": resolve_bot_avatar(b_name, group_name),
                         "is_neural": False,
                     })
 
@@ -705,7 +772,7 @@ async def make_human_move(req: MoveRequest):
 @app.post("/api/match/step")
 async def execute_engine_step():
     """Avança exatamente um lance calculado pela IA da vez."""
-    bot_move = manager.compute_next_bot_move()
+    bot_move = await asyncio.to_thread(manager.compute_next_bot_move)
     if bot_move:
         manager.play_move(bot_move)
 
@@ -724,8 +791,8 @@ async def undo_last_move():
 
 
 @app.get("/api/match/hint")
-def get_neural_hint():
-    hint = manager.get_hint_move()
+async def get_neural_hint():
+    hint = await asyncio.to_thread(manager.get_hint_move)
     return {"hint": hint}
 
 
@@ -771,7 +838,7 @@ async def websocket_match_endpoint(websocket: WebSocket):
             try:
                 msg = json.loads(data)
                 if msg.get("type") == "step":
-                    bot_move = manager.compute_next_bot_move()
+                    bot_move = await asyncio.to_thread(manager.compute_next_bot_move)
                     if bot_move:
                         manager.play_move(bot_move)
                     await ws_manager.broadcast({"type": "state_update", "state": manager.get_state()})
