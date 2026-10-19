@@ -8,6 +8,7 @@
 // ============================================================================
 class AudioManager {
   constructor() {
+    this.enabled = localStorage.getItem('gymarena_sound_enabled') !== 'false';
     this.soundCache = {};
     this.soundPaths = {
       'move-self': '/assets/sounds/move-self.mp3',
@@ -36,6 +37,7 @@ class AudioManager {
   }
 
   play(soundKey) {
+    if (!this.enabled) return;
     try {
       const sound = this.soundCache[soundKey] || this.soundCache['move-self'];
       if (sound) {
@@ -74,8 +76,14 @@ class GymArenaApp {
     this.duelSpeed = 500;
     this.isProcessingMove = false;
     this.speechTimeout = null;
+    this.lastSpokenText = null;
+    this.pendingPromotionMoves = null;
     this.ws = null;
     this.matchSessionId = 0;
+
+    // Preferências visuais salvas no LocalStorage
+    this.boardTheme = localStorage.getItem('gymarena_board_theme') || 'green';
+    this.showCoordinates = localStorage.getItem('gymarena_show_coords') !== 'false';
 
     // Mapeamento de peças em caracteres para nomes de arquivos SVG
     this.pieceSvgMap = {
@@ -84,6 +92,8 @@ class GymArenaApp {
     };
 
     this.initElements();
+    this.applyBoardTheme(this.boardTheme);
+    this.applyCoordinates(this.showCoordinates);
     this.bindEvents();
     this.startClock();
     this.initWebSocket();
@@ -200,6 +210,26 @@ class GymArenaApp {
     this.sideTelConf = document.getElementById('sideTelConf');
     this.sideTelMove = document.getElementById('sideTelMove');
     this.sideTelVisits = document.getElementById('sideTelVisits');
+
+    // Botões superiores de busca e configurações
+    this.btnQuickSearch = document.getElementById('btnQuickSearch');
+    this.btnToggleAppTheme = document.getElementById('btnToggleAppTheme');
+
+    // Modais adicionais (Promoção, Opções, Ajustes)
+    this.promotionModal = document.getElementById('promotionModal');
+    this.promotionPiecesRow = document.getElementById('promotionPiecesRow');
+
+    this.optionsModal = document.getElementById('optionsModal');
+    this.btnConfirmResign = document.getElementById('btnConfirmResign');
+    this.btnRestartMatch = document.getElementById('btnRestartMatch');
+    this.btnSwitchOpponent = document.getElementById('btnSwitchOpponent');
+    this.btnCloseOptions = document.getElementById('btnCloseOptions');
+
+    this.settingsModal = document.getElementById('settingsModal');
+    this.btnCloseSettings = document.getElementById('btnCloseSettings');
+    this.boardThemeSelect = document.getElementById('boardThemeSelect');
+    this.toggleSoundEffect = document.getElementById('toggleSoundEffect');
+    this.toggleBoardCoords = document.getElementById('toggleBoardCoords');
   }
 
   bindEvents() {
@@ -313,8 +343,78 @@ class GymArenaApp {
     });
     this.tabNavSettings.addEventListener('click', () => {
       this.setActiveNavTab(this.tabNavSettings);
-      alert("GymArena Mobile:\n- 100% Offline & Local\n- 218 Bots Oficiais do APK\n- Neural_Bot (3200 Elo ResNet MCTS)\n- Sons e Avatares Nativos");
+      this.openSettingsModal();
     });
+
+    if (this.btnQuickSearch) {
+      this.btnQuickSearch.addEventListener('click', () => {
+        this.showCatalogScreen();
+        if (this.tabViewBots) this.switchSidebarTab('bots');
+        if (this.botSearchInput) {
+          this.botSearchInput.focus();
+        }
+      });
+    }
+
+    if (this.btnToggleAppTheme) {
+      this.btnToggleAppTheme.addEventListener('click', () => this.openSettingsModal());
+    }
+
+    // Modal Ajustes (Settings)
+    if (this.btnCloseSettings) {
+      this.btnCloseSettings.addEventListener('click', () => this.closeSettingsModal());
+    }
+    if (this.settingsModal) {
+      this.settingsModal.addEventListener('click', (e) => {
+        if (e.target === this.settingsModal) this.closeSettingsModal();
+      });
+    }
+    if (this.boardThemeSelect) {
+      this.boardThemeSelect.addEventListener('change', (e) => this.applyBoardTheme(e.target.value));
+    }
+    if (this.toggleSoundEffect) {
+      this.toggleSoundEffect.addEventListener('change', (e) => {
+        this.audio.enabled = e.target.checked;
+        localStorage.setItem('gymarena_sound_enabled', e.target.checked ? 'true' : 'false');
+      });
+    }
+    if (this.toggleBoardCoords) {
+      this.toggleBoardCoords.addEventListener('change', (e) => this.applyCoordinates(e.target.checked));
+    }
+
+    // Modal Opções da Partida (Substitui confirm() nativo)
+    if (this.btnConfirmResign) {
+      this.btnConfirmResign.addEventListener('click', () => {
+        this.closeOptionsModal();
+        this.stopAutoPlay();
+        this.showCatalogScreen();
+      });
+    }
+    if (this.btnRestartMatch) {
+      this.btnRestartMatch.addEventListener('click', () => {
+        this.closeOptionsModal();
+        this.startMatch();
+      });
+    }
+    if (this.btnSwitchOpponent) {
+      this.btnSwitchOpponent.addEventListener('click', () => {
+        this.closeOptionsModal();
+        this.showCatalogScreen();
+      });
+    }
+    if (this.btnCloseOptions) {
+      this.btnCloseOptions.addEventListener('click', () => this.closeOptionsModal());
+    }
+    if (this.optionsModal) {
+      this.optionsModal.addEventListener('click', (e) => {
+        if (e.target === this.optionsModal) this.closeOptionsModal();
+      });
+    }
+    if (this.promotionModal) {
+      this.promotionModal.addEventListener('click', (e) => {
+        if (e.target === this.promotionModal) this.closePromotionModal();
+      });
+    }
 
     // Modal Game Over Ações
     this.modalRematchBtn.addEventListener('click', () => {
@@ -356,7 +456,10 @@ class GymArenaApp {
     this.updateHUD();
 
     if (state.current_speech && state.current_speech.text) {
-      this.showBotSpeech(state.current_speech.text);
+      if (state.current_speech.text !== this.lastSpokenText) {
+        this.lastSpokenText = state.current_speech.text;
+        this.showBotSpeech(state.current_speech.text);
+      }
     }
 
     if (state.is_game_over) {
@@ -426,10 +529,28 @@ class GymArenaApp {
         this.catalogBadgeCount.textContent = this.bots.length;
       }
       this.headerSubBadge.textContent = `${this.bots.length} Bots`;
+      this.renderCategoryTabs();
       this.renderCategorizedBots(this.categories);
     } catch (err) {
       console.error("Erro ao carregar catálogo de bots:", err);
     }
+  }
+
+  renderCategoryTabs() {
+    if (!this.categoryTabs || !this.categories || this.categories.length === 0) return;
+    let html = `<button class="cat-pill active" data-category="all">Todos (${this.bots.length})</button>`;
+    this.categories.forEach(cat => {
+      const icon = cat.icon || '♟️';
+      const label = cat.label || cat.group_name;
+      const count = (cat.bots || []).length;
+      const isNeural = cat.group_name.includes('Neural_Bot');
+      html += `
+        <button class="cat-pill ${isNeural ? 'highlight-pill' : ''}" data-category="${cat.group_name}">
+          ${icon} ${label} (${count})
+        </button>
+      `;
+    });
+    this.categoryTabs.innerHTML = html;
   }
 
   filterBots() {
@@ -448,9 +569,7 @@ class GymArenaApp {
     this.categories.forEach(cat => {
       // Filtro de aba de categoria
       if (categoryFilter !== 'all') {
-        if (categoryFilter === '🧠 Neural_Bot 3200') {
-          if (!cat.group_name.includes('Neural_Bot')) return;
-        } else if (!cat.group_name.toLowerCase().includes(categoryFilter.toLowerCase())) {
+        if (cat.group_name !== categoryFilter && !cat.group_name.toLowerCase().includes(categoryFilter.toLowerCase())) {
           return;
         }
       }
@@ -729,7 +848,8 @@ class GymArenaApp {
           this.startAutoPlay();
         } else {
           this.duelSpeedControl.style.display = 'none';
-          const humanColor = (payload.player_color === 'black') ? 'b' : 'w';
+          const isHumanWhite = (this.gameState.white_player && this.gameState.white_player.type === 'human');
+          const humanColor = isHumanWhite ? 'w' : 'b';
           if (this.gameState.turn !== humanColor && !this.gameState.is_game_over) {
             setTimeout(() => this.triggerBotStep(), 600);
           }
@@ -926,8 +1046,16 @@ class GymArenaApp {
 
     // Se já havia uma casa selecionada e o clique é em um movimento legal
     if (this.selectedSquare) {
-      const matchingMove = this.legalMovesForSelected.find(m => m.slice(2, 4) === squareUci);
-      if (matchingMove) {
+      const movesForTarget = this.legalMovesForSelected.filter(m => m.slice(2, 4) === squareUci);
+      if (movesForTarget.length > 0) {
+        // Se houver múltiplas escolhas de promoção (ex: e7e8q, e7e8r, e7e8b, e7e8n)
+        const isPromotion = movesForTarget.length > 1 && movesForTarget[0].length === 5;
+        if (isPromotion) {
+          this.openPromotionModal(movesForTarget, humanColor);
+          return;
+        }
+
+        const matchingMove = movesForTarget[0];
         this.executeHumanMove(matchingMove);
         this.selectedSquare = null;
         this.legalMovesForSelected = [];
@@ -1068,13 +1196,18 @@ class GymArenaApp {
     const state = this.gameState;
 
     // Anel de turno ativo
-    if (state.turn === 'w') {
+    const isMeTurn = (this.isFlipped ? state.turn === 'b' : state.turn === 'w');
+    if (isMeTurn) {
       this.meTurnRing.classList.add('active');
       this.oppTurnRing.classList.remove('active');
-      this.turnStatusBadge.textContent = "Vez das Brancas";
     } else {
       this.meTurnRing.classList.remove('active');
       this.oppTurnRing.classList.add('active');
+    }
+
+    if (state.turn === 'w') {
+      this.turnStatusBadge.textContent = "Vez das Brancas";
+    } else {
       this.turnStatusBadge.textContent = "Vez das Pretas";
     }
 
@@ -1082,12 +1215,19 @@ class GymArenaApp {
       this.turnStatusBadge.textContent = "XEQUE!";
     }
 
-    // Peças Capturadas
-    this.renderCaptured(this.meCapturedTray, state.captured_by_white, 'b');
-    this.renderCaptured(this.oppCapturedTray, state.captured_by_black, 'w');
+    // Peças Capturadas (corrigidas para quem joga de pretas)
+    const meCaptured = this.isFlipped ? state.captured_by_black : state.captured_by_white;
+    const oppCaptured = this.isFlipped ? state.captured_by_white : state.captured_by_black;
+    const meColorPrefix = this.isFlipped ? 'w' : 'b';
+    const oppColorPrefix = this.isFlipped ? 'b' : 'w';
 
-    // Vantagem Material
-    const materialDiff = state.material_diff !== undefined ? state.material_diff : 0.0;
+    this.renderCaptured(this.meCapturedTray, meCaptured, meColorPrefix);
+    this.renderCaptured(this.oppCapturedTray, oppCaptured, oppColorPrefix);
+
+    // Vantagem Material (corrigida para orientação do jogador)
+    const rawMaterialDiff = state.material_diff !== undefined ? state.material_diff : 0.0;
+    const materialDiff = this.isFlipped ? -rawMaterialDiff : rawMaterialDiff;
+
     if (materialDiff > 0) {
       this.meLeadPill.textContent = `+${Math.round(materialDiff * 100)}`;
       this.oppLeadPill.textContent = '';
@@ -1099,12 +1239,15 @@ class GymArenaApp {
       this.oppLeadPill.textContent = '';
     }
 
-    // Barra de Avaliação Vertical
+    // Barra de Avaliação Vertical (adaptada para rotação de tabuleiro)
     const evalScore = state.eval_score !== undefined ? state.eval_score : (state.eval || 0.0);
     let evalPercent = 50 + (evalScore / 6.0) * 50;
     evalPercent = Math.max(4, Math.min(96, evalPercent));
     this.mobileEvalFill.style.height = `${evalPercent}%`;
     this.mobileEvalNumber.textContent = (evalScore > 0 ? `+${evalScore.toFixed(1)}` : evalScore.toFixed(1));
+    if (this.mobileEvalTrack) {
+      this.mobileEvalTrack.style.flexDirection = this.isFlipped ? 'column' : 'column-reverse';
+    }
 
     // Telemetria Mobile
     let lastMoveStr = '--';
@@ -1303,10 +1446,93 @@ class GymArenaApp {
   }
 
   confirmResign() {
-    if (confirm("Deseja abandonar a partida ou retornar aos Bots?")) {
-      this.stopAutoPlay();
-      this.showCatalogScreen();
+    this.openOptionsModal();
+  }
+
+  // ============================================================================
+  // GERENCIAMENTO DE MODAIS NATIVOS E PREFERÊNCIAS
+  // ============================================================================
+  openOptionsModal() {
+    if (this.optionsModal) this.optionsModal.classList.remove('hidden');
+  }
+
+  closeOptionsModal() {
+    if (this.optionsModal) this.optionsModal.classList.add('hidden');
+  }
+
+  openSettingsModal() {
+    if (this.settingsModal) {
+      if (this.boardThemeSelect) this.boardThemeSelect.value = this.boardTheme;
+      if (this.toggleSoundEffect) this.toggleSoundEffect.checked = this.audio.enabled;
+      if (this.toggleBoardCoords) this.toggleBoardCoords.checked = this.showCoordinates;
+      this.settingsModal.classList.remove('hidden');
     }
+  }
+
+  closeSettingsModal() {
+    if (this.settingsModal) this.settingsModal.classList.add('hidden');
+  }
+
+  openPromotionModal(movesList, color) {
+    if (!this.promotionModal || !this.promotionPiecesRow) return;
+    this.pendingPromotionMoves = movesList;
+    this.promotionPiecesRow.innerHTML = '';
+
+    const pieces = [
+      { key: 'q', name: 'Dama', svg: `${color}q` },
+      { key: 'r', name: 'Torre', svg: `${color}r` },
+      { key: 'b', name: 'Bispo', svg: `${color}b` },
+      { key: 'n', name: 'Cavalo', svg: `${color}n` },
+    ];
+
+    pieces.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'promo-piece-btn';
+      btn.innerHTML = `
+        <img src="/assets/pieces/${p.svg}.svg" alt="${p.name}">
+        <span class="promo-piece-label">${p.name}</span>
+      `;
+      btn.addEventListener('click', () => {
+        const chosen = movesList.find(m => m.endsWith(p.key)) || movesList[0];
+        this.closePromotionModal();
+        this.executeHumanMove(chosen);
+        this.selectedSquare = null;
+        this.legalMovesForSelected = [];
+        this.renderBoard();
+      });
+      this.promotionPiecesRow.appendChild(btn);
+    });
+
+    this.promotionModal.classList.remove('hidden');
+  }
+
+  closePromotionModal() {
+    if (this.promotionModal) {
+      this.promotionModal.classList.add('hidden');
+      this.pendingPromotionMoves = null;
+    }
+  }
+
+  applyBoardTheme(themeName) {
+    this.boardTheme = themeName;
+    localStorage.setItem('gymarena_board_theme', themeName);
+    const themes = {
+      'green': { light: '#ebecd0', dark: '#739552' },
+      'walnut': { light: '#f0d9b5', dark: '#b58863' },
+      'icy': { light: '#dee3e6', dark: '#8ca2ad' },
+      'dark': { light: '#3a3835', dark: '#1e1c18' }
+    };
+    const colors = themes[themeName] || themes['green'];
+    document.documentElement.style.setProperty('--square-light', colors.light);
+    document.documentElement.style.setProperty('--square-dark', colors.dark);
+    if (this.boardThemeSelect) this.boardThemeSelect.value = themeName;
+  }
+
+  applyCoordinates(show) {
+    this.showCoordinates = show;
+    localStorage.setItem('gymarena_show_coords', show ? 'true' : 'false');
+    document.body.classList.toggle('hide-coordinates', !show);
+    if (this.toggleBoardCoords) this.toggleBoardCoords.checked = show;
   }
 }
 

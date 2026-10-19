@@ -47,7 +47,7 @@ BOTS_DATA_FILE = CURRENT_DIR / "bots_data.json"
 # ==============================================================================
 # 1. GYMARENA WEB SERVER
 # ==============================================================================
-def start_arena(host: str = "0.0.0.0", port: int = 8000):
+def start_arena(host: str = "0.0.0.0", port: int = 8000, reload: bool = False):
     """Inicia o servidor web da GymArena Mobile."""
     print("\n" + "=" * 70)
     print("      ♛ GYMARENA MOBILE: INICIANDO SERVIDOR WEB LOCAL ♛")
@@ -58,7 +58,10 @@ def start_arena(host: str = "0.0.0.0", port: int = 8000):
     print(" [*] Bots Integrados   : 217 Bots Oficiais + Neural_Bot 3200")
     print(" [*] Pressione CTRL+C para encerrar o servidor.\n")
     import uvicorn
-    uvicorn.run("arena.server:app", host=host, port=port, reload=True, app_dir=str(CURRENT_DIR))
+    if reload:
+        uvicorn.run("arena.server:app", host=host, port=port, reload=True, reload_dirs=[str(CURRENT_DIR / "arena")], app_dir=str(CURRENT_DIR))
+    else:
+        uvicorn.run("arena.server:app", host=host, port=port, reload=False, app_dir=str(CURRENT_DIR))
 
 
 # ==============================================================================

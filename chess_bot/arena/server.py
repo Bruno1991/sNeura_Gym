@@ -222,89 +222,89 @@ class MatchManager:
         """Gera o estado completo sincronizado com a interface GymArena Mobile."""
         with self.lock:
             piece_values = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
-        piece_symbols = {chess.PAWN: 'p', chess.KNIGHT: 'n', chess.BISHOP: 'b', chess.ROOK: 'r', chess.QUEEN: 'q'}
+            piece_symbols = {chess.PAWN: 'p', chess.KNIGHT: 'n', chess.BISHOP: 'b', chess.ROOK: 'r', chess.QUEEN: 'q'}
 
-        starting_pieces = {chess.PAWN: 8, chess.KNIGHT: 2, chess.BISHOP: 2, chess.ROOK: 2, chess.QUEEN: 1}
-        white_present: Dict[chess.PieceType, int] = {}
-        black_present: Dict[chess.PieceType, int] = {}
+            starting_pieces = {chess.PAWN: 8, chess.KNIGHT: 2, chess.BISHOP: 2, chess.ROOK: 2, chess.QUEEN: 1}
+            white_present: Dict[chess.PieceType, int] = {}
+            black_present: Dict[chess.PieceType, int] = {}
 
-        for sq in chess.SQUARES:
-            p = self.board.piece_at(sq)
-            if p:
-                if p.color == chess.WHITE:
-                    white_present[p.piece_type] = white_present.get(p.piece_type, 0) + 1
-                else:
-                    black_present[p.piece_type] = black_present.get(p.piece_type, 0) + 1
+            for sq in chess.SQUARES:
+                p = self.board.piece_at(sq)
+                if p:
+                    if p.color == chess.WHITE:
+                        white_present[p.piece_type] = white_present.get(p.piece_type, 0) + 1
+                    else:
+                        black_present[p.piece_type] = black_present.get(p.piece_type, 0) + 1
 
-        captured_by_white = []
-        for pt, cnt in starting_pieces.items():
-            diff = cnt - black_present.get(pt, 0)
-            if diff > 0 and pt in piece_symbols:
-                captured_by_white.extend(['b' + piece_symbols[pt]] * diff)
+            captured_by_white = []
+            for pt, cnt in starting_pieces.items():
+                diff = cnt - black_present.get(pt, 0)
+                if diff > 0 and pt in piece_symbols:
+                    captured_by_white.extend(['b' + piece_symbols[pt]] * diff)
 
-        captured_by_black = []
-        for pt, cnt in starting_pieces.items():
-            diff = cnt - white_present.get(pt, 0)
-            if diff > 0 and pt in piece_symbols:
-                captured_by_black.extend(['w' + piece_symbols[pt]] * diff)
+            captured_by_black = []
+            for pt, cnt in starting_pieces.items():
+                diff = cnt - white_present.get(pt, 0)
+                if diff > 0 and pt in piece_symbols:
+                    captured_by_black.extend(['w' + piece_symbols[pt]] * diff)
 
-        white_mat = sum(cnt * piece_values.get(pt, 0) for pt, cnt in white_present.items())
-        black_mat = sum(cnt * piece_values.get(pt, 0) for pt, cnt in black_present.items())
-        material_diff = (white_mat - black_mat) / 100.0
+            white_mat = sum(cnt * piece_values.get(pt, 0) for pt, cnt in white_present.items())
+            black_mat = sum(cnt * piece_values.get(pt, 0) for pt, cnt in black_present.items())
+            material_diff = (white_mat - black_mat) / 100.0
 
-        legal_uci = [m.uci() for m in self.board.legal_moves]
+            legal_uci = [m.uci() for m in self.board.legal_moves]
 
-        # Resultado da partida
-        is_over = self.board.is_game_over(claim_draw=True)
-        game_result = self.board.result(claim_draw=True) if is_over else "*"
-        result_desc = ""
-        if self.board.is_checkmate():
-            winner = "Brancas" if self.board.turn == chess.BLACK else "Pretas"
-            result_desc = f"Xeque-Mate! Vitória das {winner}."
-        elif self.board.is_stalemate():
-            result_desc = "Empate por Afogamento (Stalemate)."
-        elif self.board.is_insufficient_material():
-            result_desc = "Empate por Material Insuficiente."
-        elif self.board.can_claim_threefold_repetition() or self.board.is_repetition(3):
-            result_desc = "Empate por Repetição Tripla."
-        elif self.board.can_claim_fifty_moves() or self.board.is_fifty_moves():
-            result_desc = "Empate pela Regra dos 50 Lances."
+            # Resultado da partida
+            is_over = self.board.is_game_over(claim_draw=True)
+            game_result = self.board.result(claim_draw=True) if is_over else "*"
+            result_desc = ""
+            if self.board.is_checkmate():
+                winner = "Brancas" if self.board.turn == chess.BLACK else "Pretas"
+                result_desc = f"Xeque-Mate! Vitória das {winner}."
+            elif self.board.is_stalemate():
+                result_desc = "Empate por Afogamento (Stalemate)."
+            elif self.board.is_insufficient_material():
+                result_desc = "Empate por Material Insuficiente."
+            elif self.board.can_claim_threefold_repetition() or self.board.is_repetition(3):
+                result_desc = "Empate por Repetição Tripla."
+            elif self.board.can_claim_fifty_moves() or self.board.is_fifty_moves():
+                result_desc = "Empate pela Regra dos 50 Lances."
 
-        return {
-            "fen": self.board.fen(),
-            "turn": "w" if self.board.turn == chess.WHITE else "b",
-            "move_number": self.board.fullmove_number,
-            "legal_moves": legal_uci,
-            "last_move": self.last_move,
-            "is_check": self.board.is_check(),
-            "is_game_over": is_over,
-            "result": game_result,
-            "result_desc": result_desc,
-            "eval_score": self.eval_score,
-            "material_diff": material_diff,
-            "captured_by_white": captured_by_white,
-            "captured_by_black": captured_by_black,
-            "move_history": self.move_history,
-            "neural_info": self.neural_info,
-            "current_speech": self.current_speech,
-            "white_player": {
-                "type": self.white_player_type,
-                "name": "Neural_Bot" if self.white_player_type == "neural" else (self.white_bot_name or "Você"),
-                "elo": 3200 if self.white_player_type == "neural" else (self.white_bot_elo if self.white_player_type == "bot" else 1500),
-                "avatar": "/assets/avatars/neural_bot.png" if self.white_player_type == "neural" else (resolve_bot_avatar(self.white_bot_name) if self.white_player_type == "bot" else "/assets/avatars/human.png")
-            },
-            "black_player": {
-                "type": self.black_player_type,
-                "name": "Neural_Bot" if self.black_player_type == "neural" else (self.black_bot_name or "Você"),
-                "elo": 3200 if self.black_player_type == "neural" else (self.black_bot_elo if self.black_player_type == "bot" else 1500),
-                "avatar": "/assets/avatars/neural_bot.png" if self.black_player_type == "neural" else (resolve_bot_avatar(self.black_bot_name) if self.black_player_type == "bot" else "/assets/avatars/human.png")
-            },
-            "neural_mode": self.neural_mode,
-            "mcts_sims": self.neural_mcts_sims,
-            "auto_play": self.auto_play,
-            "step_delay": self.step_delay,
-            "online_trained": self.online_trained_notice,
-        }
+            return {
+                "fen": self.board.fen(),
+                "turn": "w" if self.board.turn == chess.WHITE else "b",
+                "move_number": self.board.fullmove_number,
+                "legal_moves": legal_uci,
+                "last_move": self.last_move,
+                "is_check": self.board.is_check(),
+                "is_game_over": is_over,
+                "result": game_result,
+                "result_desc": result_desc,
+                "eval_score": self.eval_score,
+                "material_diff": material_diff,
+                "captured_by_white": captured_by_white,
+                "captured_by_black": captured_by_black,
+                "move_history": list(self.move_history),
+                "neural_info": self.neural_info,
+                "current_speech": self.current_speech,
+                "white_player": {
+                    "type": self.white_player_type,
+                    "name": "Neural_Bot" if self.white_player_type == "neural" else (self.white_bot_name or "Você"),
+                    "elo": 3200 if self.white_player_type == "neural" else (self.white_bot_elo if self.white_player_type == "bot" else 1500),
+                    "avatar": "/assets/avatars/neural_bot.png" if self.white_player_type == "neural" else (resolve_bot_avatar(self.white_bot_name) if self.white_player_type == "bot" else "/assets/avatars/human.png")
+                },
+                "black_player": {
+                    "type": self.black_player_type,
+                    "name": "Neural_Bot" if self.black_player_type == "neural" else (self.black_bot_name or "Você"),
+                    "elo": 3200 if self.black_player_type == "neural" else (self.black_bot_elo if self.black_player_type == "bot" else 1500),
+                    "avatar": "/assets/avatars/neural_bot.png" if self.black_player_type == "neural" else (resolve_bot_avatar(self.black_bot_name) if self.black_player_type == "bot" else "/assets/avatars/human.png")
+                },
+                "neural_mode": self.neural_mode,
+                "mcts_sims": self.neural_mcts_sims,
+                "auto_play": self.auto_play,
+                "step_delay": self.step_delay,
+                "online_trained": self.online_trained_notice,
+            }
 
     def play_move(self, move: chess.Move) -> bool:
         """Aplica o lance ao tabuleiro e calcula os eventos e reações."""
@@ -398,25 +398,28 @@ class MatchManager:
                 "avatar": resolve_bot_avatar(bot_name),
                 "side": bot_side,
             }
+        else:
+            self.current_speech = None
 
     def undo_move(self) -> bool:
-        """Desfaz lances no tabuleiro."""
-        if len(self.board_stack) <= 1:
-            return False
+        """Desfaz lances no tabuleiro de forma thread-safe."""
+        with self.lock:
+            if len(self.board_stack) <= 1:
+                return False
 
-        human_playing = ("human" in (self.white_player_type, self.black_player_type))
-        steps_to_pop = 2 if human_playing and len(self.board_stack) > 2 else 1
+            human_playing = ("human" in (self.white_player_type, self.black_player_type))
+            steps_to_pop = 2 if human_playing and len(self.board_stack) > 2 else 1
 
-        for _ in range(steps_to_pop):
-            if len(self.board_stack) > 1:
-                self.board.pop()
-                self.board_stack.pop()
-                if self.move_history:
-                    self.move_history.pop()
+            for _ in range(steps_to_pop):
+                if len(self.board_stack) > 1:
+                    self.board.pop()
+                    self.board_stack.pop()
+                    if self.move_history:
+                        self.move_history.pop()
 
-        self.last_move = None
-        self.current_speech = None
-        return True
+            self.last_move = None
+            self.current_speech = None
+            return True
 
     def compute_next_bot_move(self) -> Optional[chess.Move]:
         """Calcula a jogada da IA da vez de forma não bloqueante e com descarte de geração defasada."""

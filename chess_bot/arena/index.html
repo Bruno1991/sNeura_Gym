@@ -438,8 +438,91 @@
       </div>
     </div>
 
+    <!-- =================================================================== -->
+    <!-- MODAL DE PROMOÇÃO DE PEÃO                                            -->
+    <!-- =================================================================== -->
+    <div class="mobile-drawer-backdrop hidden" id="promotionModal">
+      <div class="mobile-bottom-sheet promotion-sheet">
+        <h3 class="promotion-title">Promover Peão</h3>
+        <p class="promotion-desc">Escolha a peça para a qual deseja promover:</p>
+        <div class="promotion-pieces-grid" id="promotionPiecesRow">
+          <!-- Botões de Rainha, Torre, Bispo e Cavalo inseridos dinamicamente -->
+        </div>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MODAL / SHEET DE OPÇÕES DA PARTIDA (ABANDONAR, REINICIAR, ETC)      -->
+    <!-- =================================================================== -->
+    <div class="mobile-drawer-backdrop hidden" id="optionsModal">
+      <div class="mobile-bottom-sheet options-sheet">
+        <h3 class="options-sheet-title">Opções da Partida</h3>
+        <div class="options-actions-list">
+          <button class="options-action-btn danger" id="btnConfirmResign">
+            <span class="opt-icon">🏳️</span>
+            <span>Abandonar Partida</span>
+          </button>
+          <button class="options-action-btn" id="btnRestartMatch">
+            <span class="opt-icon">🔄</span>
+            <span>Reiniciar Partida</span>
+          </button>
+          <button class="options-action-btn" id="btnSwitchOpponent">
+            <span class="opt-icon">🤖</span>
+            <span>Escolher Outro Bot</span>
+          </button>
+          <button class="options-action-btn secondary" id="btnCloseOptions">
+            <span>✖</span>
+            <span>Cancelar</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MODAL DE AJUSTES E CONFIGURAÇÕES DA GYMARENA                         -->
+    <!-- =================================================================== -->
+    <div class="mobile-drawer-backdrop hidden" id="settingsModal">
+      <div class="mobile-bottom-sheet settings-sheet">
+        <div class="settings-sheet-header">
+          <h3 class="settings-title">⚙️ Ajustes da GymArena</h3>
+          <button class="settings-close-x" id="btnCloseSettings">&times;</button>
+        </div>
+        <div class="settings-sheet-body">
+          <div class="settings-item-row">
+            <label for="boardThemeSelect" class="settings-item-label">🎨 Tema do Tabuleiro:</label>
+            <select id="boardThemeSelect" class="settings-select-input">
+              <option value="green" selected>Oficial Chess.com (Verde & Creme)</option>
+              <option value="walnut">Madeira Nobre (Walnut)</option>
+              <option value="icy">Gelo & Oceano (Azul)</option>
+              <option value="dark">Dark Neon (Mestre)</option>
+            </select>
+          </div>
+          <div class="settings-item-row">
+            <label class="settings-item-label">🔊 Efeitos Sonoros Oficiais:</label>
+            <label class="switch-toggle">
+              <input type="checkbox" id="toggleSoundEffect" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-item-row">
+            <label class="settings-item-label">🔢 Coordenadas (A-H, 1-8):</label>
+            <label class="switch-toggle">
+              <input type="checkbox" id="toggleBoardCoords" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-brand-info">
+            <div class="brand-badge-mini">♛ GymArena v5.0 Mobile Native</div>
+            <p>• 218 Bots Oficiais integrados do Chess.com</p>
+            <p>• Neural_Bot 3200 Elo com ResNet 128ch + MCTS</p>
+            <p>• 66 Efeitos Sonoros nativos e Avatares oficiais</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <script src="/app.js?v=5.0"></script>
+  <script src="/app.js?v=5.1"></script>
 </body>
 </html>

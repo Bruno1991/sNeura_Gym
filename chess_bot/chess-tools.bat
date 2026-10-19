@@ -1,5 +1,5 @@
 @echo off
-title s_Neura_Gym: Canivete Suíço do Xadrez & GymArena
+title s_Neura_Gym: Canivete Suíço do Xadrez ^& GymArena
 chcp 65001 >nul
 cd /d "%~dp0"
 
