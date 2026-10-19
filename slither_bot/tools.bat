@@ -1,7 +1,7 @@
 @echo off
-title s_Neura_Gym: Canivete Suíço do Xadrez & GymArena
+title s_Neura_Gym: Canivete Suíço Slither Bot
 chcp 65001 >nul
-cd /d "%~dp0\chess_bot"
+cd /d "%~dp0"
 
 python cli.py %*
 
