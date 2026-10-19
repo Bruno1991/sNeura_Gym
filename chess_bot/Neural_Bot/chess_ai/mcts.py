@@ -55,14 +55,39 @@ class MCTSNode:
         self._check_terminal()
 
     def _check_terminal(self):
-        """Verifica se o estado é xeque-mate ou empate."""
+        """Verifica se o estado é xeque-mate, empate ou tem vitória por mate em 1 forçado."""
         if self.board.is_checkmate():
             self.is_terminal = True
             # Quem tem a vez de jogar está em xeque-mate, portanto perdeu (-1.0)
             self.terminal_value = -1.0
-        elif self.board.is_game_over(claim_draw=True):
+        elif (
+            self.board.can_claim_threefold_repetition()
+            or self.board.is_repetition(3)
+            or self.board.is_game_over(claim_draw=True)
+        ):
             self.is_terminal = True
-            self.terminal_value = 0.0
+            # Contempt Factor: Se o jogador que tem a vez está com vantagem de material, o empate é punido severamente (-0.80)
+            piece_vals = {chess.PAWN: 100, chess.KNIGHT: 320, chess.BISHOP: 330, chess.ROOK: 500, chess.QUEEN: 900}
+            mat_cur = sum(piece_vals.get(p.piece_type, 0) for p in self.board.piece_map().values() if p.color == self.board.turn)
+            mat_opp = sum(piece_vals.get(p.piece_type, 0) for p in self.board.piece_map().values() if p.color != self.board.turn)
+            net_advantage = mat_cur - mat_opp
+            if net_advantage >= 90:
+                self.terminal_value = -0.80
+            elif net_advantage <= -90:
+                self.terminal_value = 0.25
+            else:
+                self.terminal_value = 0.0
+        else:
+            # Checagem tática: o jogador com a vez possui lance que dá xeque-mate imediato?
+            for m in self.board.legal_moves:
+                self.board.push(m)
+                if self.board.is_checkmate():
+                    self.board.pop()
+                    self.is_terminal = True
+                    # Quem tem a vez tem mate forçado em 1 lance garantido (+1.0)
+                    self.terminal_value = 1.0
+                    break
+                self.board.pop()
 
     @property
     def q_value(self) -> float:
@@ -86,7 +111,7 @@ class MCTSNode:
         """Expande o nó criando filhos para todos os lances legais com seus priors."""
         self.children.clear()
         for move, prior in move_priors.items():
-            child_board = self.board.copy(stack=False)
+            child_board = self.board.copy(stack=True)
             child_board.push(move)
             self.children[move] = MCTSNode(
                 board=child_board,
@@ -218,6 +243,17 @@ class NeuralMCTS:
         if not root_priors:
             return legal_moves[0], {"source": "root_no_priors"}
 
+        # Injetar Prior Punitivo Voraz na Raiz (Reforço imediato para capturas de peças desprotegidas)
+        from .tactics import find_punitive_captures
+        punitive_moves = find_punitive_captures(board)
+        if punitive_moves:
+            for p_move, net_delta, _ in punitive_moves:
+                if p_move in root_priors:
+                    root_priors[p_move] += (net_delta / 1000.0) * 3.0
+            total_p = sum(root_priors.values())
+            if total_p > 0:
+                root_priors = {m: p / total_p for m, p in root_priors.items()}
+
         # Injetar Ruído de Dirichlet na raiz para exploração variada se solicitado
         if add_noise and len(root_priors) > 1:
             moves = list(root_priors.keys())
@@ -280,6 +316,52 @@ class NeuralMCTS:
         sorted_moves = sorted(visit_counts.items(), key=lambda x: x[1], reverse=True)
         if not sorted_moves:
             return legal_moves[0], {"source": "mcts_fallback"}
+
+        # Guarda Tática Anti-Blunder na Raiz:
+        # Descarta qualquer lance suicida (mate em 1, mate forçado em 2 ou perda crítica)
+        from .tactics import evaluate_tactical_safety
+        safe_sorted_moves = []
+        for m, visits in sorted_moves:
+            is_safe, _, _ = evaluate_tactical_safety(board, m)
+            if is_safe:
+                safe_sorted_moves.append((m, visits))
+
+        # Se houver lances taticamente seguros, restringe a escolha a eles
+        if safe_sorted_moves:
+            sorted_moves = safe_sorted_moves
+
+        # 4.1 ESCUDO ANTI-REPETIÇÃO E ANTI-EMPATE NA RAIZ (CONTEMPT SYSTEM):
+        # Se estamos com vantagem material ou posicional, NUNCA permita empate por repetição tripla
+        # e evite repetição dupla se houver alternativas taticamente seguras!
+        piece_vals = {chess.PAWN: 100, chess.KNIGHT: 320, chess.BISHOP: 330, chess.ROOK: 500, chess.QUEEN: 900}
+        mat_cur = sum(piece_vals.get(p.piece_type, 0) for p in board.piece_map().values() if p.color == board.turn)
+        mat_opp = sum(piece_vals.get(p.piece_type, 0) for p in board.piece_map().values() if p.color != board.turn)
+        is_ahead = (mat_cur >= mat_opp) or (root_eval >= 0.0)
+
+        if is_ahead and len(sorted_moves) > 1:
+            # 1. Elimina qualquer lance que permita empate por repetição tripla imediata
+            non_draw_moves = []
+            for m, v in sorted_moves:
+                board.push(m)
+                is_draw_3 = board.can_claim_threefold_repetition() or board.is_repetition(3)
+                board.pop()
+                if not is_draw_3:
+                    non_draw_moves.append((m, v))
+            if non_draw_moves:
+                sorted_moves = non_draw_moves
+
+            # 2. Se ainda restarem opções, evita repetição dupla (is_repetition(2)) para não oscilar peças
+            if len(sorted_moves) > 1:
+                progressive_moves = []
+                for m, v in sorted_moves:
+                    board.push(m)
+                    is_rep2 = board.is_repetition(2)
+                    board.pop()
+                    if not is_rep2:
+                        progressive_moves.append((m, v))
+                if progressive_moves:
+                    sorted_moves = progressive_moves
+
 
         if temperature > 0.0 and len(sorted_moves) > 1:
             moves = [m for m, _ in sorted_moves]

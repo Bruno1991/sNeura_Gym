@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>GymArena - Mobile Chess Experience</title>
+
+  <!-- Tipografia Oficial Moderna -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/style.css?v=5.0">
+</head>
+<body class="mobile-app-body">
+
+  <!-- Mobile Device Shell Frame (100% Formato Smartphone Nativo) -->
+  <div class="mobile-app-shell">
+
+    <!-- Barra de Status Mobile Nativa -->
+    <header class="mobile-status-bar">
+      <div class="status-left">
+        <span class="status-time" id="statusClock">12:00</span>
+      </div>
+      <div class="status-center">
+        <span class="gym-brand-pill">
+          <svg class="gym-pawn-icon" viewBox="0 0 24 24" width="16" height="16" fill="#81b64c">
+            <path d="M12 2a4 4 0 0 0-4 4c0 1.34.66 2.53 1.67 3.25C8.08 10.36 7 12.3 7 14.5c0 .34.03.67.09 1H5v2h14v-2h-2.09c.06-.33.09-.66.09-1 0-2.2-1.08-4.14-2.67-5.25A4.004 4.004 0 0 0 16 6a4 4 0 0 0-4-4zm-7 17v2h14v-2H5z"/>
+          </svg>
+          <span class="brand-title">GymArena</span>
+        </span>
+      </div>
+      <div class="status-right">
+        <span class="status-icon">📶</span>
+        <span class="status-icon">🔋</span>
+      </div>
+    </header>
+
+    <!-- Cabeçalho Principal do App -->
+    <div class="app-top-header" id="appTopHeader">
+      <button class="header-icon-btn hidden" id="btnBackToCatalog" title="Voltar aos Bots">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+        </svg>
+      </button>
+      <div class="header-title-wrap">
+        <h1 class="header-main-title" id="headerMainTitle">Computador</h1>
+        <span class="header-sub-badge" id="headerSubBadge">218 Bots</span>
+      </div>
+      <div class="header-action-group">
+        <button class="header-icon-btn" id="btnQuickSearch" title="Buscar Bot">🔍</button>
+        <button class="header-icon-btn" id="btnToggleAppTheme" title="Configurações">⚙️</button>
+      </div>
+    </div>
+
+    <!-- Área de Conteúdo Deslizável (Telas) -->
+    <main class="app-screens-viewport">
+
+      <!-- =================================================================== -->
+      <!-- TELA 1: CATÁLOGO OFICIAL DE BOTS (LISTAGEM MOBILE)                  -->
+      <!-- =================================================================== -->
+      <section class="screen-view" id="catalogScreen">
+        <!-- Barra de Busca Rápida -->
+        <div class="search-bar-wrap" id="searchBarWrap">
+          <span class="search-glass-icon">🔍</span>
+          <input type="text" id="botSearchInput" class="mobile-search-input" placeholder="Buscar bot por nome, elo ou estilo...">
+          <button class="search-clear-btn hidden" id="btnClearSearch">&times;</button>
+        </div>
+
+        <!-- Abas de Categorias Estilo Pills Horizontais do App Mobile -->
+        <div class="category-pills-scroll">
+          <div class="category-pills" id="categoryTabs">
+            <button class="cat-pill active" data-category="all">Todos (218)</button>
+            <button class="cat-pill highlight-pill" data-category="🧠 Neural_Bot 3200">🧠 Neural_Bot (3200)</button>
+            <button class="cat-pill" data-category="The Cryptids">The Cryptids</button>
+            <button class="cat-pill" data-category="Beginner">Iniciantes</button>
+            <button class="cat-pill" data-category="Intermediate">Intermediários</button>
+            <button class="cat-pill" data-category="Advanced">Avançados</button>
+            <button class="cat-pill" data-category="Master">Mestres</button>
+            <button class="cat-pill" data-category="Top Players">Grandes Mestres</button>
+            <button class="cat-pill" data-category="Creators">Criadores</button>
+            <button class="cat-pill" data-category="Engine">Komodo Engine</button>
+          </div>
+        </div>
+
+        <!-- Lista Vertical de Cards dos Bots Mobile -->
+        <div class="bots-mobile-list" id="botsListContainer">
+          <!-- Cards gerados via app.js -->
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- TELA 2: TABULEIRO MOBILE 1:1 (MATCH VIEW NATIVA)                    -->
+      <!-- =================================================================== -->
+      <section class="screen-view hidden" id="matchScreen">
+        <div class="mobile-match-layout">
+
+          <!-- HUD Superior: Oponente (Pretas por padrão) -->
+          <div class="player-hud-mobile opponent-hud" id="oppHud">
+            <div class="player-left-group">
+              <div class="avatar-ring-wrap">
+                <img src="/assets/avatars/Nelson.png" alt="Oponente" class="avatar-mobile-img" id="oppAvatar">
+                <span class="active-turn-ring" id="oppTurnRing"></span>
+              </div>
+              <div class="player-text-group">
+                <div class="name-elo-row">
+                  <span class="mobile-player-name" id="oppName">Nelson</span>
+                  <span class="elo-chip" id="oppElo">1300</span>
+                </div>
+                <div class="captures-row">
+                  <div class="captured-pieces-tray" id="oppCapturedTray"></div>
+                  <span class="lead-pill" id="oppLeadPill"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Balão de Fala do Bot Mobile -->
+            <div class="bot-speech-bubble-mobile" id="botSpeechBubble" style="display: none;">
+              <span class="speech-text" id="speechText">Prepare-se para o cálculo.</span>
+            </div>
+          </div>
+
+          <!-- Tabuleiro Central 1:1 com Barra de Avaliação Integrada -->
+          <div class="board-mobile-stage">
+            
+            <!-- Barra de Avaliação Vertical Fina Estilo Mobile -->
+            <div class="mobile-eval-track" id="mobileEvalTrack" title="Avaliação da Posição">
+              <div class="mobile-eval-fill" id="mobileEvalFill" style="height: 50%;"></div>
+              <span class="mobile-eval-number" id="mobileEvalNumber">0.0</span>
+            </div>
+
+            <!-- Frame Rígido 1:1 do Tabuleiro -->
+            <div class="mobile-board-frame" id="boardFrame">
+              <div class="chess-grid-8x8" id="chessGrid">
+                <!-- 64 casas renderizadas via app.js -->
+              </div>
+            </div>
+          </div>
+
+          <!-- HUD Inferior: Seu Jogador ou Neural_Bot -->
+          <div class="player-hud-mobile player-hud-bottom" id="meHud">
+            <div class="player-left-group">
+              <div class="avatar-ring-wrap">
+                <img src="/assets/avatars/neural_bot.png" alt="Jogador" class="avatar-mobile-img" id="meAvatar">
+                <span class="active-turn-ring" id="meTurnRing"></span>
+              </div>
+              <div class="player-text-group">
+                <div class="name-elo-row">
+                  <span class="mobile-player-name" id="meName">Neural_Bot</span>
+                  <span class="elo-chip highlight-chip" id="meElo">3200</span>
+                  <span class="role-badge" id="meRoleBadge">NEURAL AI</span>
+                </div>
+                <div class="captures-row">
+                  <div class="captured-pieces-tray" id="meCapturedTray"></div>
+                  <span class="lead-pill" id="meLeadPill"></span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Status de Turno / Xeque -->
+            <div class="turn-status-badge" id="turnStatusBadge">
+              Vez das Brancas
+            </div>
+          </div>
+
+          <!-- Painel de Telemetria e Duelo Neural Mobile -->
+          <div class="mobile-telemetry-strip" id="telemetryStrip">
+            <div class="telemetry-pill">
+              <span class="tel-tag">CÉREBRO:</span>
+              <span class="tel-val highlight" id="telModeDisplay">MCTS 3200</span>
+            </div>
+            <div class="telemetry-pill">
+              <span class="tel-tag">LANCE:</span>
+              <span class="tel-val" id="telBestMove">--</span>
+            </div>
+            <div class="telemetry-pill">
+              <span class="tel-tag">AVAL:</span>
+              <span class="tel-val" id="telEvalScore">+0.00</span>
+            </div>
+            <div class="telemetry-pill">
+              <span class="tel-tag">CONFIANÇA:</span>
+              <span class="tel-val" id="telConfidence">100%</span>
+            </div>
+          </div>
+
+          <!-- Barra de Ações do Jogo Mobile (Action Toolbar Inferior) -->
+          <div class="mobile-action-bar">
+            <button class="bar-btn" id="btnHintMove" title="Dica Tática">
+              <span class="bar-icon">💡</span>
+              <span class="bar-lbl">Dica</span>
+            </button>
+            <button class="bar-btn" id="btnUndoMove" title="Desfazer Lance">
+              <span class="bar-icon">↩️</span>
+              <span class="bar-lbl">Desfazer</span>
+            </button>
+            <button class="bar-btn active-mcts" id="btnToggleMcts" title="Ligar/Desligar Motor MCTS">
+              <span class="bar-icon">🧠</span>
+              <span class="bar-lbl" id="mctsBtnLabel">MCTS ON</span>
+            </button>
+            <button class="bar-btn" id="btnFlipBoard" title="Inverter Tabuleiro">
+              <span class="bar-icon">🔄</span>
+              <span class="bar-lbl">Inverter</span>
+            </button>
+            <button class="bar-btn danger-btn" id="btnResignMatch" title="Opções / Desistir">
+              <span class="bar-icon">🏳️</span>
+              <span class="bar-lbl">Opções</span>
+            </button>
+          </div>
+
+          <!-- Barra de Velocidade para Duelo Automatizado (Live Duel) -->
+          <div class="duel-speed-control" id="duelSpeedControl" style="display: none;">
+            <div class="speed-label-row">
+              <span>⚔️ Duelo Neural ao Vivo</span>
+              <span class="speed-val" id="duelSpeedVal">500ms</span>
+            </div>
+            <input type="range" id="duelSpeedSlider" min="150" max="1500" step="50" value="500">
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Barra de Navegação Inferior Nativa (Mobile App Dock) -->
+    <nav class="mobile-bottom-nav">
+      <button class="nav-tab active" id="tabNavPlay" title="Jogar contra Bots">
+        <span class="nav-tab-icon">♟️</span>
+        <span class="nav-tab-label">Computador</span>
+      </button>
+      <button class="nav-tab" id="tabNavNeuralDuel" title="Duelos Neurais">
+        <span class="nav-tab-icon">🧠</span>
+        <span class="nav-tab-label">Duelo Neural</span>
+      </button>
+      <button class="nav-tab" id="tabNavMcts" title="Configurações do MCTS">
+        <span class="nav-tab-icon">⚡</span>
+        <span class="nav-tab-label">MCTS 3200</span>
+      </button>
+      <button class="nav-tab" id="tabNavSettings" title="Configurações Gerais">
+        <span class="nav-tab-icon">⚙️</span>
+        <span class="nav-tab-label">Ajustes</span>
+      </button>
+    </nav>
+
+    <!-- =================================================================== -->
+    <!-- DRAWER INFERIOR DE DESAFIO DO BOT (SLIDING BOTTOM SHEET DO APP)     -->
+    <!-- =================================================================== -->
+    <div class="mobile-drawer-backdrop hidden" id="challengeDrawer">
+      <div class="mobile-bottom-sheet">
+        <!-- Barra de puxar a gaveta -->
+        <div class="drawer-drag-handle"></div>
+
+        <div class="drawer-bot-profile">
+          <div class="drawer-avatar-wrap">
+            <img src="/assets/avatars/Nelson.png" alt="Bot" id="drawerBotAvatar" class="drawer-bot-avatar">
+            <span class="drawer-bot-elo" id="drawerBotElo">1300</span>
+          </div>
+          <div class="drawer-bot-info">
+            <h2 class="drawer-bot-name" id="drawerBotName">Nelson</h2>
+            <span class="drawer-bot-category" id="drawerBotCategory">Intermediário</span>
+            <p class="drawer-bot-bio" id="drawerBotBio">Adora tirar a Dama cedo na partida para pressionar.</p>
+          </div>
+        </div>
+
+        <div class="drawer-settings-section">
+          <!-- Modo de Jogo -->
+          <div class="drawer-setting-block">
+            <label class="setting-title">Modo de Combate:</label>
+            <div class="mode-chips-grid">
+              <button class="mode-chip active" data-mode="neural_vs_bot" id="chipNeuralVsBot">
+                <span class="chip-emoji">🧠 ⚔️ 🤖</span>
+                <span class="chip-main">Neural vs Bot</span>
+                <span class="chip-sub">Assista a IA de 3200 jogar</span>
+              </button>
+              <button class="mode-chip" data-mode="human_vs_bot" id="chipHumanVsBot">
+                <span class="chip-emoji">🧑 ⚔️ 🤖</span>
+                <span class="chip-main">Você vs Bot</span>
+                <span class="chip-sub">Jogue contra o bot do Chess.com</span>
+              </button>
+              <button class="mode-chip" data-mode="human_vs_neural" id="chipHumanVsNeural">
+                <span class="chip-emoji">🧑 ⚔️ 🧠</span>
+                <span class="chip-main">Você vs Neural</span>
+                <span class="chip-sub">Desafie a Rede Neural</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Escolha de Cor -->
+          <div class="drawer-setting-block">
+            <label class="setting-title">Jogar de:</label>
+            <div class="color-chips-row">
+              <button class="color-chip active" data-color="white" id="chipColorWhite">
+                <span class="piece-icon">♔</span>
+                <span>Brancas</span>
+              </button>
+              <button class="color-chip" data-color="random" id="chipColorRandom">
+                <span class="piece-icon">⚄</span>
+                <span>Aleatório</span>
+              </button>
+              <button class="color-chip" data-color="black" id="chipColorBlack">
+                <span class="piece-icon">♚</span>
+                <span>Pretas</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Controle MCTS -->
+          <div class="drawer-setting-block">
+            <div class="mcts-label-row">
+              <label class="setting-title">🧠 Motor Neural MCTS:</label>
+              <span class="mcts-status-badge" id="drawerMctsStatus">Ativo (50 nós)</span>
+            </div>
+            <div class="sims-chips-row" id="drawerSimsRow">
+              <button class="sim-chip" data-sims="25">25x</button>
+              <button class="sim-chip active" data-sims="50">50x (Padrão 3200)</button>
+              <button class="sim-chip" data-sims="100">100x (GM)</button>
+              <button class="sim-chip" data-sims="200">200x (Super GM)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botão Verde Gigante Oficial "JOGAR" -->
+        <button class="btn-play-gymarena" id="btnStartGameConfirmed">
+          JOGAR AGORA
+        </button>
+
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MODAL / BOTTOM SHEET DE FIM DE JOGO                                 -->
+    <!-- =================================================================== -->
+    <div class="mobile-drawer-backdrop hidden" id="gameOverModal">
+      <div class="mobile-gameover-sheet">
+        <div class="gameover-trophy" id="gameOverTrophy">🏆</div>
+        <h2 class="gameover-title" id="gameOverTitle">Vitória!</h2>
+        <p class="gameover-desc" id="gameOverDesc">Xeque-mate por Neural_Bot</p>
+        <div class="gameover-buttons">
+          <button class="btn-play-gymarena" id="modalRematchBtn">Jogar Novamente</button>
+          <button class="btn-secondary-mobile" id="modalChooseBotBtn">Escolher Outro Bot</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/app.js?v=5.0"></script>
+</body>
+</html>

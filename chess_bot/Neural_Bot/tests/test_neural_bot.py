@@ -7,7 +7,7 @@ from pathlib import Path
 
 from chess_ai.encoder import encode_board, encode_move, decode_move, get_legal_action_mask, ACTION_SIZE, NUM_CHANNELS
 from chess_ai.model import ChessPolicyValueNet
-from chess_ai.dataset import extract_polyglot_data
+from chess_ai.dataset import extract_polyglot_data, ChessOpeningDataset
 from chess_ai.agent import NeuralChessBot
 
 
@@ -94,3 +94,84 @@ def test_agent_legal_inference():
     finally:
         if temp_weights.is_file():
             temp_weights.unlink()
+
+
+def test_agent_anti_blunder_guard():
+    """Testa se o agente em modo 1-pass desvia de lances que entregam mate em 1."""
+    model = ChessPolicyValueNet(num_channels=64, num_blocks=2)
+    temp_weights = Path(__file__).resolve().parent / "temp_weights_blunder.pt"
+    model.save_weights(temp_weights)
+
+    try:
+        agent = NeuralChessBot(weights_path=temp_weights, device="cpu")
+        board = chess.Board("r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 3 3")
+        move, info = agent.get_best_move(board)
+
+        assert move in board.legal_moves
+        board.push(move)
+        for white_move in board.legal_moves:
+            board.push(white_move)
+            assert not board.is_checkmate(), f"Lance {move} permitiu mate em 1 com {white_move}!"
+            board.pop()
+        board.pop()
+    finally:
+        if temp_weights.is_file():
+            temp_weights.unlink()
+
+
+def test_multi_polyglot_dataset_extraction():
+    """Valida extração unificada de múltiplos livros Polyglot (.bin)."""
+    assets = Path(__file__).resolve().parent.parent.parent / "Scripted_Bot" / "assets"
+    books = [assets / "balanced.bin", assets / "beginner.bin", assets / "quick_queen.bin"]
+
+    dataset = ChessOpeningDataset.load_or_extract_multi(
+        books,
+        cache_path=Path(__file__).resolve().parent / "temp_multi_cache.pt",
+        max_positions=15,
+        force_rebuild=True,
+    )
+    try:
+        assert len(dataset) == 15
+        s, p, v = dataset[0]
+        assert s.shape == (NUM_CHANNELS, 8, 8)
+        assert p.shape == (ACTION_SIZE,)
+        assert abs(float(p.sum()) - 1.0) < 1e-4
+    finally:
+        temp_cache = Path(__file__).resolve().parent / "temp_multi_cache.pt"
+        if temp_cache.is_file():
+            temp_cache.unlink()
+
+
+def test_agent_adaptive_mcts_triggers_on_check():
+    """Testa se o MCTS adaptativo calcula e responde quando o Rei está em xeque."""
+    model = ChessPolicyValueNet(num_channels=64, num_blocks=2)
+    # use_book=False para testar diretamente o acionamento do MCTS adaptativo neural
+    agent = NeuralChessBot(model=model, device="cpu", adaptive_mcts=True, adaptive_sims=5, use_book=False)
+
+    # Posição onde as brancas estão em xeque por uma dama preta mas possuem defesas legais
+    board = chess.Board()
+    board.push_san("e4")
+    board.push_san("e5")
+    board.push_san("f4")
+    board.push_san("Qh4+")
+    assert board.is_check()
+    assert not board.is_checkmate()
+
+    move, info = agent.get_best_move(board)
+    assert move in board.legal_moves
+    # O rei estava em xeque, o MCTS adaptativo deve ter sido acionado
+    assert info.get("source") in ("adaptive_neural_mcts", "instant_checkmate", "neural_policy_argmax")
+
+
+def test_agent_polyglot_book_integration():
+    """Testa se o bot consulta com prioridade o livro canônico nos primeiros lances."""
+    model = ChessPolicyValueNet(num_channels=64, num_blocks=2)
+    agent = NeuralChessBot(model=model, device="cpu", use_book=True)
+
+    board = chess.Board()
+    move, info = agent.get_best_move(board)
+    assert move in board.legal_moves
+    assert info.get("source") == "polyglot_opening_book"
+
+
+

@@ -7,6 +7,8 @@ Inspirada na arquitetura AlphaZero / Leela Chess Zero:
 - Cabeça de Valor (Value Head): Prediz a avaliação posicional escalar entre -1.0 e +1.0.
 """
 
+import os
+import time
 from pathlib import Path
 from typing import Optional, Tuple
 import torch
@@ -96,19 +98,36 @@ class ChessPolicyValueNet(nn.Module):
         return policy_logits, value
 
     def save_weights(self, path: str | Path):
-        """Salva os pesos do modelo em arquivo .pt."""
+        """Salva os pesos do modelo em arquivo .pt com escrita atômica e proteção contra locks."""
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(
-            {
-                "state_dict": self.state_dict(),
-                "num_channels": self.num_channels,
-                "num_blocks": self.num_blocks,
-                "in_channels": self.in_channels,
-                "action_size": self.action_size,
-            },
-            str(p),
-        )
+        temp_p = p.with_name(f"{p.stem}_{os.getpid()}_{time.time_ns()}.tmp")
+        payload = {
+            "state_dict": self.state_dict(),
+            "num_channels": self.num_channels,
+            "num_blocks": self.num_blocks,
+            "in_channels": self.in_channels,
+            "action_size": self.action_size,
+        }
+        for attempt in range(5):
+            try:
+                torch.save(payload, str(temp_p))
+                temp_p.replace(p)
+                return
+            except Exception:
+                if attempt == 4:
+                    try:
+                        torch.save(payload, str(p))
+                        return
+                    except Exception:
+                        pass
+                time.sleep(0.1 * (attempt + 1))
+            finally:
+                if temp_p.is_file():
+                    try:
+                        temp_p.unlink()
+                    except Exception:
+                        pass
 
     @classmethod
     def load_weights(cls, path: str | Path, device: str = "cpu") -> "ChessPolicyValueNet":

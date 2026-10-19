@@ -199,10 +199,10 @@ def evaluate_board(board: chess.Board) -> int:
     
     Valores positivos favorecem quem joga no momento; valores negativos desfavorecem.
     """
-    if board.is_checkmate():
-        return -20000
-
-    if board.is_stalemate() or board.is_insufficient_material() or board.can_claim_draw():
+    if board.is_check():
+        if board.is_checkmate():
+            return -20000
+    elif board.is_stalemate() or board.is_insufficient_material():
         return 0
 
     mg_white = 0

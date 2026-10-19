@@ -108,12 +108,14 @@ class AlphaBetaSearcher:
         """Busca de quiescência: continua avaliando capturas para eliminar o efeito horizonte."""
         self.nodes_visited += 1
 
-        if self.nodes_visited % 2048 == 0:
+        if self.nodes_visited % 64 == 0:
             if time.time() - self.start_time > self.time_limit:
                 self.time_up = True
                 return evaluate_board(board)
 
         stand_pat = evaluate_board(board)
+        if ply > 3:
+            return stand_pat
 
         if stand_pat >= beta:
             return beta
@@ -154,7 +156,7 @@ class AlphaBetaSearcher:
         """Busca minimax com poda Alpha-Beta e Transposition Table."""
         self.nodes_visited += 1
 
-        if self.nodes_visited % 2048 == 0:
+        if self.nodes_visited % 64 == 0:
             if time.time() - self.start_time > self.time_limit:
                 self.time_up = True
                 return evaluate_board(board), None

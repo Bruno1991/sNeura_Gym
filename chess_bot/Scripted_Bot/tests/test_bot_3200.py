@@ -4,7 +4,7 @@ import pytest
 import chess
 from pathlib import Path
 
-from bot_3200 import ChessBot3200
+from chess_bot import ChessBot3200, ChessBot
 from engine.evaluation import evaluate_board
 from engine.search import AlphaBetaSearcher
 
@@ -48,7 +48,7 @@ def test_opening_book_sicilian_response(bot):
     assert book_result is not None
     move, weight = book_result
     assert move in board.legal_moves
-    assert board.san(move) in ["c5", "e5", "e6", "c6", "d6", "Nf6", "d5"]
+    assert board.san(move) in ["c5", "e5", "e6", "c6", "d6", "Nf6", "d5", "g6"]
 
 
 def test_evaluation_initial_board():

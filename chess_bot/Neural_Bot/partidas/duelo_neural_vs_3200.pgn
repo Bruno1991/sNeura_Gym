@@ -1,9 +1,0 @@
-[Event "Duelo Local s_Neura_Gym"]
-[Site "?"]
-[Date "2026.10.14"]
-[Round "?"]
-[White "Neural_Bot (ResNet + MCTS 30)"]
-[Black "Maximum (3200 Elo)"]
-[Result "0-1"]
-
-1. d4 Nf6 2. c4 g6 3. Nc3 d5 4. Bg5 Ne4 5. Bxe7 Bxe7 6. Nxe4 dxe4 7. Nf3 exf3 8. gxf3 Bb4+ 9. Qd2 Nc6 10. Bg2 Qxd4 11. f4 Qxd2+ 12. Kf1 Nd4 13. e3 Qxb2 14. f3 Qxa1+ 15. Kf2 Qxa2+ 16. Kg3 Nf5+ 17. Kg4 Qxg2# 0-1

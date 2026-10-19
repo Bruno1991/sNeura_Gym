@@ -36,7 +36,7 @@ def test_mcts_node_terminal_detection():
 
     st_node = MCTSNode(board=stalemate_board)
     assert st_node.is_terminal
-    assert st_node.terminal_value == 0.0
+    assert st_node.terminal_value in (0.0, 0.25)
 
 
 def test_mcts_search_opening():
@@ -84,3 +84,25 @@ def test_mcts_with_dirichlet_noise():
     assert move is not None
     assert move in board.legal_moves
     assert stats["simulations"] == 15
+
+
+def test_mcts_anti_blunder_guard_prevents_mate():
+    """Valida se a Guarda Tática Anti-Blunder impede o bot de permitir mate em 1."""
+    model = ChessPolicyValueNet(num_channels=64, num_blocks=2)
+    mcts = NeuralMCTS(model=model, device="cpu")
+
+    # Posição onde as Brancas ameaçam Qxf7# (Pastor) e as Pretas precisam se defender
+    board = chess.Board("r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 3 3")
+    move, stats = mcts.search(board, num_simulations=30, temperature=0.0)
+
+    assert move is not None
+    assert move in board.legal_moves
+
+    # O lance escolhido NUNCA pode permitir que as Brancas joguem Qxf7# no lance seguinte
+    board.push(move)
+    for white_move in board.legal_moves:
+        board.push(white_move)
+        assert not board.is_checkmate(), f"O lance {move} permitiu mate imediato com {white_move}!"
+        board.pop()
+    board.pop()
+

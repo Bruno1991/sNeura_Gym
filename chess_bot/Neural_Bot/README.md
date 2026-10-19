@@ -50,27 +50,25 @@ flowchart TD
 ---
 
 ## 3. Estrutura de Diretórios
-
+ 
 ```
 Neural_Bot/
 ├── chess_ai/
 │   ├── __init__.py
 │   ├── agent.py              # Agente de inferência neural (NeuralChessBot)
+│   ├── batched_env.py        # Ambiente vetorizado de xadrez na GPU
+│   ├── batched_rl_trainer.py # Treinador massivo paralelo (64 workers + AMP)
 │   ├── dataset.py            # Extrator Polyglot e DataLoader PyTorch
 │   ├── encoder.py            # Codificador de tabuleiro e lances canônicos
+│   ├── mcts.py               # Busca em Árvore Monte Carlo com Anti-Blunder
 │   ├── model.py              # Arquitetura ResNet com dupla cabeça
-│   └── trainer.py            # Pipeline de treinamento supervisionado
-├── checkpoints/              # Pesos treinados (.pt, .onnx) e datasets em cache
+│   ├── online_learning.py    # Aprendizado online imediato após cada jogo
+│   └── trainer.py            # Pipeline de destilação supervisionada
+├── checkpoints/              # Pesos treinados (.pt, .onnx) e histórico de treino
 │   ├── chess_policy_weights.pt
 │   ├── chess_policy_weights.onnx
-│   └── training_history.json
-├── scripts/
-│   └── train_distillation.py # Script CLI para execução do treino
-├── tests/
-│   └── test_neural_bot.py    # Testes unitários automatizados (pytest)
-├── neural_bot.py             # CLI interativa para jogar contra a rede
-├── treinar-destilacao.bat    # Atalho batch para treinar na GPU
-├── jogar-neural-bot.bat      # Atalho batch para jogar contra o bot neural
+│   └── torneio_1000_history.json
+├── tests/                    # Testes automatizados (pytest)
 └── README.md                 # Esta documentação
 ```
 
@@ -78,36 +76,30 @@ Neural_Bot/
 
 ## 4. Como Treinar a Rede (Converter o `.bin` em Pesos)
 
-### Opção 1: Atalho Direto no Windows
-Dê duplo clique no arquivo:
-```cmd
-treinar-destilacao.bat
+### Opção 1: Pela Central Unificada (Recomendado)
+Execute `arena.bat` ou pelo terminal:
+```bash
+python arena_cli.py --mode destilar --epochs 8
 ```
 
-### Opção 2: Linha de Comando (GPU CUDA)
-```bash
-python scripts/train_distillation.py --epochs 8 --batch-size 256
-```
-
-Para teste rápido com um subconjunto de posições:
-```bash
-python scripts/train_distillation.py --epochs 3 --batch-size 128 --max-positions 5000
-```
+### Opção 2: Pelo Menu Interativo
+Execute `arena.bat`, selecione a **Opção [7] (Retreinar / Destilar Livro de Aberturas)**.
 
 ---
 
 ## 5. Como Jogar Contra a Rede Treinada
 
+### Opção 1: Interface Gráfica Web (Web Arena)
 ```bash
-# Jogar de Brancas
-python neural_bot.py --play
-
-# Jogar de Pretas
-python neural_bot.py --play --color black
-
-# Variar a temperatura de amostragem
-python neural_bot.py --play --temp 0.5
+python arena_cli.py --mode web
 ```
+Acesse `http://localhost:8000` para jogar com tabuleiro arrastável e barra de avaliação em tempo real.
+
+### Opção 2: Pelo Terminal Interativo
+```bash
+python arena_cli.py --mode neural --color white --mcts 200
+```
+Cada partida jogada treina e aperfeiçoa a rede automaticamente ao final.
 
 ---
 

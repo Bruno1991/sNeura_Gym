@@ -21,6 +21,7 @@ from torch.utils.data import DataLoader, Dataset
 from .batched_env import BatchedChessEnv
 from .encoder import ACTION_SIZE, NUM_CHANNELS
 from .model import ChessPolicyValueNet
+from .report_generator import generate_tournament_markdown_report
 
 
 class BatchedTrajectoryDataset(Dataset):
@@ -44,12 +45,15 @@ class BatchedRLTrainer:
     def __init__(
         self,
         model: ChessPolicyValueNet,
-        bot_3200: Any,
+        bot_3200: Any = None,
         num_workers: int = 64,
         device: Optional[str] = None,
         lr: float = 4e-4,
         checkpoints_dir: Optional[Path] = None,
         use_amp: bool = True,
+        bot_pool: Optional[List[Any]] = None,
+        max_plies: int = 80,
+        engine_pool_workers: int = 8,
     ):
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -60,6 +64,7 @@ class BatchedRLTrainer:
         self.bot_3200 = bot_3200
         self.num_workers = num_workers
         self.use_amp = use_amp and (self.device.type == "cuda")
+        self.bot_pool = bot_pool
 
         self.checkpoints_dir = checkpoints_dir or Path(__file__).resolve().parent.parent / "checkpoints"
         self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
@@ -72,8 +77,14 @@ class BatchedRLTrainer:
         else:
             self.scaler = None
 
-        # Ambiente paralelo de 64 partidas
-        self.env = BatchedChessEnv(num_workers=self.num_workers, max_plies=70, device=self.device)
+        # Ambiente paralelo com bot_pool e multiprocessamento para oponentes
+        self.env = BatchedChessEnv(
+            num_workers=self.num_workers,
+            max_plies=max_plies,
+            device=self.device,
+            bot_pool=self.bot_pool,
+            engine_pool_workers=engine_pool_workers,
+        )
 
         # Buffer de replay histórico
         self.replay_states: List[torch.Tensor] = []
@@ -93,11 +104,19 @@ class BatchedRLTrainer:
                 # Alvo do Especialista 3200 Elo (DAgger)
                 policy_target[action_idx] = 1.0
             else:
-                # Alvo Neural: reforça lances positivos ou pune derrotas
-                if outcome_val >= 0.0:
+                # Alvo Neural: reforça vitórias (+1.0), atenua empates e pune derrotas / passividade (<0.0)
+                if outcome_val > 0.0:
                     policy_target[action_idx] = 1.0
+                elif outcome_val < 0.0:
+                    # Derrota ou empate punido contra bot fraco:
+                    # Penaliza fortemente o lance perdedor/passivo e dispersa probabilidade
+                    policy_target.fill(1.0 / (ACTION_SIZE - 1))
+                    policy_target[action_idx] = 0.0001
+                    policy_target /= policy_target.sum()
                 else:
-                    policy_target[action_idx] = 0.05
+                    # Empate neutro contra mestre: dispersa parcialmente para incentivar busca de vitória
+                    policy_target.fill(0.6 / ACTION_SIZE)
+                    policy_target[action_idx] = 0.4
                     policy_target /= policy_target.sum()
 
             self.replay_states.append(state_t)
@@ -183,26 +202,66 @@ class BatchedRLTrainer:
         save_weights_path: Optional[Path] = None,
         save_onnx_path: Optional[Path] = None,
         history_path: Optional[Path] = None,
+        max_hours: Optional[float] = None,
     ):
-        """Executa o ciclo de 1000 partidas paralelizadas em 64 workers com AMP FP16."""
+        """Executa o ciclo de partidas paralelizadas em 64 workers com AMP FP16."""
         print("\n" + "=" * 78)
         print(f"  BATCHED RL TRAINER (64 WORKERS PARALELOS + AMP FP16)")
-        print(f"  Objetivo: {total_games} Partidas Paralelas | Neural_Bot vs Maximum 3200")
+        if max_hours:
+            print(f"  Objetivo: Torneio Contínuo por {max_hours:.2f} Horas | Neural_Bot vs Todos os Bots")
+        else:
+            print(f"  Objetivo: {total_games} Partidas Paralelas | Neural_Bot vs Todos os Bots")
         print("=" * 78)
         print(f"[*] Dispositivo       : {self.device.type.upper()} ({torch.cuda.get_device_name(0) if self.device.type == 'cuda' else 'CPU'})")
         print(f"[*] Workers Paralelos : {self.num_workers} partidas simultâneas")
         print(f"[*] AMP FP16 Ativo    : {self.use_amp} (NVIDIA Tensor Cores)")
-        print(f"[*] Partidas p/ Ciclo : {games_per_cycle} (Total Ciclos: {total_games // games_per_cycle})")
+        print(f"[*] Partidas p/ Ciclo : {games_per_cycle}")
+        if max_hours:
+            print(f"[*] Duração Alvo      : {max_hours:.2f} horas ({(max_hours * 3600):.0f} segundos)")
+        else:
+            print(f"[*] Total de Ciclos   : {total_games // games_per_cycle}")
         print(f"[*] Batch Size Treino : {batch_size}")
         print("-" * 78)
 
-        total_cycles = max(1, total_games // games_per_cycle)
+        max_seconds = (max_hours * 3600.0) if max_hours else None
+        total_cycles = 999_999 if max_hours else max(1, total_games // games_per_cycle)
         global_start = time.time()
-        initial_games = self.env.total_completed_games
+        
+        # Carregamento de checkpoint prévio para retomada contínua (Resume)
+        initial_cycle = 0
+        cumulative_elapsed = 0.0
+        if history_path and Path(history_path).is_file():
+            try:
+                with open(history_path, "r", encoding="utf-8") as f:
+                    saved = json.load(f)
+                cycles = saved.get("cycles", [])
+                if cycles:
+                    self.history = list(cycles)
+                    initial_cycle = len(cycles)
+                    cumulative_elapsed = float(saved.get("total_time_seconds", 0.0))
+                    self.env.total_completed_games = int(saved.get("total_games", self.env.total_completed_games))
+                    self.env.neural_wins = int(saved.get("neural_wins", self.env.neural_wins))
+                    self.env.engine_wins = int(saved.get("engine_wins", self.env.engine_wins))
+                    self.env.draws = int(saved.get("draws", self.env.draws))
+                    if "stats_by_tier" in saved and isinstance(saved["stats_by_tier"], dict):
+                        self.env.stats_by_tier = saved["stats_by_tier"]
+                    if "stats_by_bot" in saved and isinstance(saved["stats_by_bot"], dict):
+                        self.env.stats_by_bot = saved["stats_by_bot"]
+                    print(f"[*] RESUME ATIVO: Carregadas {self.env.total_completed_games:,} partidas prévias ({initial_cycle} ciclos já concluídos em {cumulative_elapsed/3600:.2f}h).")
+            except Exception as e:
+                print(f"[!] Aviso: erro ao carregar checkpoint para resume: {e}")
 
-        for cycle in range(1, total_cycles + 1):
+        cycle = initial_cycle
+        while True:
+            cycle += 1
+            if max_seconds is not None and (time.time() - global_start) >= max_seconds:
+                print(f"\n[+] Meta de duração atingida: {max_hours:.2f} horas! Finalizando torneio com sucesso.\n", flush=True)
+                break
+            if max_seconds is None and cycle > total_cycles:
+                break
+
             cycle_start = time.time()
-            cycle_target = initial_games + cycle * games_per_cycle
+            cycle_target = cycle * games_per_cycle
 
             cycle_neural_wins = 0
             cycle_engine_wins = 0
@@ -222,7 +281,7 @@ class BatchedRLTrainer:
                     cycle_plies_list.append(plies)
                     if "Vitória Neural" in res_str:
                         cycle_neural_wins += 1
-                    elif "Maximum 3200" in res_str:
+                    elif "Vitória" in res_str:
                         cycle_engine_wins += 1
                     else:
                         cycle_draws += 1
@@ -230,21 +289,25 @@ class BatchedRLTrainer:
             # Passo de otimização na GPU com PyTorch AMP FP16
             train_metrics = self.train_gpu_step_amp(epochs=epochs_per_cycle, batch_size=batch_size)
             cycle_elapsed = time.time() - cycle_start
-            total_elapsed = time.time() - global_start
+            total_elapsed = cumulative_elapsed + (time.time() - global_start)
 
             avg_plies = sum(cycle_plies_list) / max(1, len(cycle_plies_list))
             total_played = self.env.total_completed_games
             neural_win_rate = (self.env.neural_wins / max(1, total_played)) * 100.0
             draw_rate = (self.env.draws / max(1, total_played)) * 100.0
 
-            fps = len(self.replay_states) / max(0.1, total_elapsed)
+            fps = len(self.replay_states) / max(0.1, (time.time() - global_start))
+
+            cycle_tag = f"Ciclo [{cycle:02d}]" if max_hours else f"Ciclo [{cycle:02d}/{total_cycles:02d}]"
+            games_tag = f"Partidas: {total_played:05d}" if max_hours else f"Partidas {total_played:05d}/{total_games}"
+            time_tag = f"Total: {total_elapsed/3600:4.2f}h ({cycle_elapsed:4.1f}s/c)"
 
             print(
-                f"Ciclo [{cycle:02d}/{total_cycles:02d}] (Partidas {total_played:04d}/{total_games}) | "
-                f"Tempo: {cycle_elapsed:4.1f}s | "
-                f"Vitórias: {cycle_neural_wins} | Empates: {cycle_draws} | Derrotas: {cycle_engine_wins} | "
-                f"Loss AMP: {train_metrics['loss']:.4f} | "
-                f"Posições Buffer: {len(self.replay_states)} ({fps:.0f} pos/s)"
+                f"{cycle_tag} ({games_tag}) | {time_tag} | "
+                f"V: {cycle_neural_wins} | E: {cycle_draws} | D: {cycle_engine_wins} | "
+                f"Taxa Vit: {neural_win_rate:.1f}% | Loss AMP: {train_metrics['loss']:.4f} | "
+                f"Buffer: {len(self.replay_states):,} ({fps:.0f} pos/s)",
+                flush=True,
             )
 
             cycle_data = {
@@ -270,26 +333,39 @@ class BatchedRLTrainer:
 
             # Salvar pesos atualizados após cada ciclo
             if save_weights_path:
-                self.model.save_weights(save_weights_path)
+                try:
+                    self.model.save_weights(save_weights_path)
+                except Exception as e:
+                    print(f"[!] Aviso: erro transitório ao salvar pesos no ciclo {cycle}: {e}")
 
             if history_path:
-                with open(history_path, "w", encoding="utf-8") as f:
-                    json.dump(
-                        {
-                            "num_workers": self.num_workers,
-                            "use_amp": self.use_amp,
-                            "total_games": total_played,
-                            "neural_wins": self.env.neural_wins,
-                            "engine_wins": self.env.engine_wins,
-                            "draws": self.env.draws,
-                            "final_win_rate": neural_win_rate,
-                            "draw_rate": draw_rate,
-                            "total_time_seconds": total_elapsed,
-                            "cycles": self.history,
-                        },
-                        f,
-                        indent=2,
-                    )
+                try:
+                    with open(history_path, "w", encoding="utf-8") as f:
+                        json.dump(
+                            {
+                                "num_workers": self.num_workers,
+                                "use_amp": self.use_amp,
+                                "max_hours": max_hours,
+                                "elapsed_hours": round(total_elapsed / 3600.0, 3),
+                                "total_games": total_played,
+                                "neural_wins": self.env.neural_wins,
+                                "engine_wins": self.env.engine_wins,
+                                "draws": self.env.draws,
+                                "final_win_rate": neural_win_rate,
+                                "draw_rate": draw_rate,
+                                "total_time_seconds": total_elapsed,
+                                "stats_by_tier": getattr(self.env, "stats_by_tier", {}),
+                                "stats_by_bot": getattr(self.env, "stats_by_bot", {}),
+                                "cycles": self.history,
+                            },
+                            f,
+                            indent=2,
+                        )
+                except Exception as e:
+                    print(f"[!] Aviso: erro transitório ao salvar histórico JSON no ciclo {cycle}: {e}")
+
+        # Encerramento dos processos do ambiente
+        self.env.close()
 
         # Exportar modelo final para ONNX
         if save_onnx_path:
@@ -306,9 +382,59 @@ class BatchedRLTrainer:
         print(f"[+] Total de Partidas Concluídas: {self.env.total_completed_games}")
         print(f"[+] Vitórias do Neural_Bot      : {self.env.neural_wins} ({(self.env.neural_wins/max(1, self.env.total_completed_games))*100:.1f}%)")
         print(f"[+] Empates Conquistados        : {self.env.draws} ({(self.env.draws/max(1, self.env.total_completed_games))*100:.1f}%)")
-        print(f"[+] Vitórias do Maximum 3200    : {self.env.engine_wins} ({(self.env.engine_wins/max(1, self.env.total_completed_games))*100:.1f}%)")
+        print(f"[+] Derrotas (Bots Adversários) : {self.env.engine_wins} ({(self.env.engine_wins/max(1, self.env.total_completed_games))*100:.1f}%)")
         print(f"[+] Duração Total               : {total_time:.1f}s ({total_time/60:.2f} min)")
         print(f"[+] Amostras no Buffer Replay   : {len(self.replay_states):,}")
         print(f"[+] Pesos Aprimorados Salvos    : {save_weights_path}")
         print(f"[+] Histórico Detalhado em      : {history_path}")
+
+        if hasattr(self.env, "stats_by_tier") and any(st["wins"] + st["losses"] + st["draws"] > 0 for st in self.env.stats_by_tier.values()):
+            print("\n" + "=" * 78)
+            print("  DESEMPENHO POR FAIXA DE ELO DOS ADVERSÁRIOS (MULTI-BOT):")
+            print("=" * 78)
+            for tier, st in self.env.stats_by_tier.items():
+                tot = st["wins"] + st["losses"] + st["draws"]
+                if tot > 0:
+                    pct = ((st["wins"] + 0.5 * st["draws"]) / tot) * 100
+                    print(f"  * {tier:<26} | Partidas: {tot:<4} | V: {st['wins']:<3} | E: {st['draws']:<3} | D: {st['losses']:<3} | Score: {pct:.1f}%")
+            print("=" * 78)
+
+        if hasattr(self.env, "stats_by_bot") and any(st["wins"] + st["losses"] + st["draws"] > 0 for st in self.env.stats_by_bot.values()):
+            print("\n" + "=" * 78)
+            print("  DESEMPENHO INDIVIDUAL CONTRA CADA BOT (CHESS.COM):")
+            print("=" * 78)
+            sorted_bots = sorted(self.env.stats_by_bot.items(), key=lambda x: x[1].get("rating", 0))
+            for b_name, b_st in sorted_bots:
+                tot = b_st["wins"] + b_st["losses"] + b_st["draws"]
+                if tot > 0:
+                    pct = ((b_st["wins"] + 0.5 * b_st["draws"]) / tot) * 100
+                    print(f"  * {b_name:<20} (Elo {b_st.get('rating', '?'):<4}) | Partidas: {tot:<3} | V: {b_st['wins']:<2} | E: {b_st['draws']:<2} | D: {b_st['losses']:<2} | Score: {pct:5.1f}%")
+            print("=" * 78)
         print("=" * 78 + "\n")
+
+        # Salvar relatório analítico consolidado no diretório exclusivo de avanços do projeto
+        reports_dir = Path("C:/dev/s_Neura_Gym/chess_bot/relatorios_avancos")
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        report_path = reports_dir / f"relatorio_torneio_{self.env.total_completed_games}_partidas.md"
+        history_payload = {
+            "num_workers": self.num_workers,
+            "use_amp": self.use_amp,
+            "max_hours": max_hours,
+            "elapsed_hours": round(total_elapsed / 3600.0, 3),
+            "total_games": self.env.total_completed_games,
+            "neural_wins": self.env.neural_wins,
+            "engine_wins": self.env.engine_wins,
+            "draws": self.env.draws,
+            "final_win_rate": (self.env.neural_wins / max(1, self.env.total_completed_games)) * 100.0,
+            "draw_rate": (self.env.draws / max(1, self.env.total_completed_games)) * 100.0,
+            "total_time_seconds": total_elapsed,
+            "stats_by_tier": getattr(self.env, "stats_by_tier", {}),
+            "stats_by_bot": getattr(self.env, "stats_by_bot", {}),
+            "cycles": self.history,
+        }
+        try:
+            generate_tournament_markdown_report(history_payload, report_path)
+            print(f"[+] Relatório analítico detalhado salvo com sucesso em: {report_path}")
+        except Exception as e:
+            print(f"[!] Erro ao gerar relatório markdown: {e}")
+
