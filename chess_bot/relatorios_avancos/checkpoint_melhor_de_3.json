@@ -1,0 +1,360 @@
+{
+  "results": [
+    {
+      "name": "The Mechanical Turk",
+      "rating": 1,
+      "category": "Personalities",
+      "neural_wins": 2,
+      "opp_wins": 0,
+      "draws": 0,
+      "winner": "Neural_Bot",
+      "games_played": 2,
+      "total_moves": 117,
+      "total_duration": 290.6,
+      "games": [
+        {
+          "game": 1,
+          "color": "black",
+          "result": "0-1",
+          "desc": "Xeque-Mate! Vitória das Pretas.",
+          "moves": 54,
+          "duration": 113.9,
+          "winner": "Neural_Bot"
+        },
+        {
+          "game": 2,
+          "color": "white",
+          "result": "1-0",
+          "desc": "Xeque-Mate! Vitória das Brancas.",
+          "moves": 63,
+          "duration": 176.7,
+          "winner": "Neural_Bot"
+        }
+      ]
+    },
+    {
+      "name": "June",
+      "rating": 50,
+      "category": "New to Chess",
+      "neural_wins": 2,
+      "opp_wins": 0,
+      "draws": 0,
+      "winner": "Neural_Bot",
+      "games_played": 2,
+      "total_moves": 97,
+      "total_duration": 246.8,
+      "games": [
+        {
+          "game": 1,
+          "color": "black",
+          "result": "0-1",
+          "desc": "Xeque-Mate! Vitória das Pretas.",
+          "moves": 64,
+          "duration": 157.3,
+          "winner": "Neural_Bot"
+        },
+        {
+          "game": 2,
+          "color": "white",
+          "result": "1-0",
+          "desc": "Xeque-Mate! Vitória das Brancas.",
+          "moves": 33,
+          "duration": 89.5,
+          "winner": "Neural_Bot"
+        }
+      ]
+    },
+    {
+      "name": "Pepe",
+      "rating": 100,
+      "category": "New to Chess",
+      "neural_wins": 2,
+      "opp_wins": 0,
+      "draws": 1,
+      "winner": "Neural_Bot",
+      "games_played": 3,
+      "total_moves": 123,
+      "total_duration": 327.9,
+      "games": [
+        {
+          "game": 1,
+          "color": "black",
+          "result": "1/2-1/2",
+          "desc": "Limite de tempo excedido",
+          "moves": 115,
+          "duration": 360.0,
+          "winner": "Empate"
+        },
+        {
+          "game": 2,
+          "color": "white",
+          "result": "1-0",
+          "desc": "Xeque-Mate! Vitória das Brancas.",
+          "moves": 63,
+          "duration": 168.2,
+          "winner": "Neural_Bot"
+        },
+        {
+          "game": 3,
+          "color": "black",
+          "result": "0-1",
+          "desc": "Xeque-Mate! Vitória das Pretas.",
+          "moves": 60,
+          "duration": 159.7,
+          "winner": "Neural_Bot"
+        }
+      ]
+    },
+    {
+      "name": "Elsa",
+      "rating": 150,
+      "category": "New to Chess",
+      "neural_wins": 2,
+      "opp_wins": 0,
+      "draws": 0,
+      "winner": "Neural_Bot",
+      "games_played": 2,
+      "total_moves": 183,
+      "total_duration": 405.5,
+      "games": [
+        {
+          "game": 1,
+          "color": "black",
+          "result": "0-1",
+          "desc": "Xeque-Mate! Vitória das Pretas.",
+          "moves": 72,
+          "duration": 161.2,
+          "winner": "Neural_Bot"
+        },
+        {
+          "game": 2,
+          "color": "white",
+          "result": "1-0",
+          "desc": "Xeque-Mate! Vitória das Brancas.",
+          "moves": 111,
+          "duration": 244.3,
+          "winner": "Neural_Bot"
+        }
+      ]
+    },
+    {
+      "name": "Beginner",
+      "rating": 250,
+      "category": "Engine",
+      "neural_wins": 2,
+      "opp_wins": 0,
+      "draws": 0,
+      "winner": "Neural_Bot",
+      "games_played": 2,
+      "total_moves": 151,
+      "total_duration": 375.1,
+      "games": [
+        {
+          "game": 1,
+          "color": "black",
+          "result": "0-1",
+          "desc": "Xeque-Mate! Vitória das Pretas.",
+          "moves": 74,
+          "duration": 180.3,
+          "winner": "Neural_Bot"
+        },
+        {
+          "game": 2,
+          "color": "white",
+          "result": "1-0",
+          "desc": "Xeque-Mate! Vitória das Brancas.",
+          "moves": 77,
+          "duration": 194.8,
+          "winner": "Neural_Bot"
+        }
+      ]
+    },
+    {
+      "name": "Elani",
+      "rating": 400,
+      "category": "Beginner",
+      "neural_wins": 2,
+      "opp_wins": 0,
+      "draws": 0,
+      "winner": "Neural_Bot",
+      "games_played": 2,
+      "total_moves": 181,
+      "total_duration": 370.2,
+      "games": [
+        {
+          "game": 1,
+          "color": "white",
+          "result": "1-0",
+          "desc": "Xeque-Mate! Vitória das Brancas.",
+          "moves": 109,
+          "duration": 193.6,
+          "winner": "Neural_Bot"
+        },
+        {
+          "game": 2,
+          "color": "black",
+          "result": "0-1",
+          "desc": "Xeque-Mate! Vitória das Pretas.",
+          "moves": 72,
+          "duration": 176.6,
+          "winner": "Neural_Bot"
+        }
+      ]
+    },
+    {
+      "name": "Milica",
+      "rating": 550,
+      "category": "Beginner",
+      "neural_wins": 2,
+      "opp_wins": 0,
+      "draws": 1,
+      "winner": "Neural_Bot",
+      "games_played": 3,
+      "total_moves": 164,
+      "total_duration": 525.2,
+      "games": [
+        {
+          "game": 1,
+          "color": "white",
+          "result": "1/2-1/2",
+          "desc": "Limite de tempo excedido",
+          "moves": 110,
+          "duration": 360.0,
+          "winner": "Empate"
+        },
+        {
+          "game": 2,
+          "color": "black",
+          "result": "0-1",
+          "desc": "Xeque-Mate! Vitória das Pretas.",
+          "moves": 60,
+          "duration": 173.0,
+          "winner": "Neural_Bot"
+        },
+        {
+          "game": 3,
+          "color": "black",
+          "result": "0-1",
+          "desc": "Xeque-Mate! Vitória das Pretas.",
+          "moves": 104,
+          "duration": 352.2,
+          "winner": "Neural_Bot"
+        }
+      ]
+    },
+    {
+      "name": "Loch Chess Monster",
+      "rating": 575,
+      "category": "The Cryptids",
+      "neural_wins": 2,
+      "opp_wins": 0,
+      "draws": 1,
+      "winner": "Neural_Bot",
+      "games_played": 3,
+      "total_moves": 148,
+      "total_duration": 354.5,
+      "games": [
+        {
+          "game": 1,
+          "color": "black",
+          "result": "0-1",
+          "desc": "Xeque-Mate! Vitória das Pretas.",
+          "moves": 86,
+          "duration": 258.9,
+          "winner": "Neural_Bot"
+        },
+        {
+          "game": 2,
+          "color": "white",
+          "result": "1/2-1/2",
+          "desc": "Limite de tempo excedido",
+          "moves": 95,
+          "duration": 360.0,
+          "winner": "Empate"
+        },
+        {
+          "game": 3,
+          "color": "black",
+          "result": "0-1",
+          "desc": "Xeque-Mate! Vitória das Pretas.",
+          "moves": 62,
+          "duration": 95.6,
+          "winner": "Neural_Bot"
+        }
+      ]
+    },
+    {
+      "name": "HarryMack",
+      "rating": 600,
+      "category": "Creators",
+      "neural_wins": 2,
+      "opp_wins": 0,
+      "draws": 0,
+      "winner": "Neural_Bot",
+      "games_played": 2,
+      "total_moves": 177,
+      "total_duration": 461.1,
+      "games": [
+        {
+          "game": 1,
+          "color": "black",
+          "result": "0-1",
+          "desc": "Xeque-Mate! Vitória das Pretas.",
+          "moves": 122,
+          "duration": 334.1,
+          "winner": "Neural_Bot"
+        },
+        {
+          "game": 2,
+          "color": "white",
+          "result": "1-0",
+          "desc": "Xeque-Mate! Vitória das Brancas.",
+          "moves": 55,
+          "duration": 127.0,
+          "winner": "Neural_Bot"
+        }
+      ]
+    },
+    {
+      "name": "Aron",
+      "rating": 700,
+      "category": "Beginner",
+      "neural_wins": 1,
+      "opp_wins": 0,
+      "draws": 2,
+      "winner": "Neural_Bot",
+      "games_played": 3,
+      "total_moves": 43,
+      "total_duration": 127.0,
+      "games": [
+        {
+          "game": 1,
+          "color": "white",
+          "result": "1-0",
+          "desc": "Xeque-Mate! Vitória das Brancas.",
+          "moves": 43,
+          "duration": 127.0,
+          "winner": "Neural_Bot"
+        },
+        {
+          "game": 2,
+          "color": "black",
+          "result": "1/2-1/2",
+          "desc": "Limite de tempo excedido",
+          "moves": 145,
+          "duration": 360.0,
+          "winner": "Empate"
+        },
+        {
+          "game": 3,
+          "color": "black",
+          "result": "1/2-1/2",
+          "desc": "Limite de tempo excedido",
+          "moves": 115,
+          "duration": 360.0,
+          "winner": "Empate"
+        }
+      ]
+    }
+  ]
+}

@@ -90,22 +90,25 @@ class NeuralChessBot:
         if not self.model or board.is_game_over():
             return {}, 0.0
 
-        state_tensor = encode_board(board).unsqueeze(0).to(self.device)
-        legal_mask = get_legal_action_mask(board).to(self.device)
+        legal_moves = list(board.legal_moves)
+        if not legal_moves:
+            return {}, 0.0
 
-        with torch.no_grad():
+        state_tensor = encode_board(board).unsqueeze(0).to(self.device)
+        indices = [encode_move(m, board.turn) for m in legal_moves]
+        idx_tensor = torch.tensor(indices, device=self.device, dtype=torch.long)
+
+        self.model.eval()
+        with torch.inference_mode():
             policy_logits, value = self.model(state_tensor)
             logits = policy_logits.squeeze(0)
-
-            # Mascarar lances ilegais com valor negativo extremo (-inf)
-            masked_logits = torch.where(legal_mask, logits, torch.tensor(-1e9, device=self.device))
-            probs = F.softmax(masked_logits, dim=-1).cpu().numpy()
+            legal_logits = logits[idx_tensor]
+            probs = F.softmax(legal_logits, dim=-1).cpu().numpy()
             eval_val = float(value.item())
 
         move_probs: Dict[chess.Move, float] = {}
-        for m in board.legal_moves:
-            idx = encode_move(m, board.turn)
-            move_probs[m] = float(probs[idx])
+        for m, p in zip(legal_moves, probs):
+            move_probs[m] = float(p)
 
         return move_probs, eval_val
 

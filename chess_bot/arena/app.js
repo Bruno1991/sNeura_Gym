@@ -817,7 +817,7 @@ class GymArenaApp {
       bot_elo: this.selectedBot.elo,
       neural_mode: this.mctsActive ? "mcts" : "direct",
       mcts_sims: this.selectedSims,
-      step_delay: 0.5,
+      step_delay: (this.duelSpeed || 100) / 1000.0,
       auto_play: (this.selectedMode === 'neural_vs_bot')
     };
 
@@ -1151,7 +1151,7 @@ class GymArenaApp {
   startAutoPlay() {
     this.stopAutoPlay();
     if (!this.gameState || this.gameState.is_game_over) return;
-    this.scheduleNextDuelStep(150);
+    this.scheduleNextDuelStep(this.duelSpeed);
   }
 
   scheduleNextDuelStep(delay = null) {

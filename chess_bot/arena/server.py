@@ -479,10 +479,12 @@ class MatchManager:
 
             # 2. VEZ DO SCRIPTED BOT (CHESS.COM)
             if current_type == "bot":
-                engine = ChessBot(
-                    rate=white_bot_elo if is_white_turn else black_bot_elo,
-                    bot_name=white_bot_name if is_white_turn else black_bot_name
-                )
+                engine = self.active_white_engine if is_white_turn else self.active_black_engine
+                if engine is None:
+                    engine = ChessBot(
+                        rate=white_bot_elo if is_white_turn else black_bot_elo,
+                        bot_name=white_bot_name if is_white_turn else black_bot_name
+                    )
 
                 move, info = engine.get_best_move(board_snapshot)
                 score_cp = info.get("score_cp", 0)

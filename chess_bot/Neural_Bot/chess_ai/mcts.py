@@ -55,7 +55,7 @@ class MCTSNode:
         self._check_terminal()
 
     def _check_terminal(self):
-        """Verifica se o estado é xeque-mate, empate ou tem vitória por mate em 1 forçado."""
+        """Verifica se o estado é xeque-mate ou empate."""
         if self.board.is_checkmate():
             self.is_terminal = True
             # Quem tem a vez de jogar está em xeque-mate, portanto perdeu (-1.0)
@@ -66,7 +66,7 @@ class MCTSNode:
             or self.board.is_game_over(claim_draw=True)
         ):
             self.is_terminal = True
-            # Contempt Factor: Se o jogador que tem a vez está com vantagem de material, o empate é punido severamente (-0.80)
+            # Contempt Factor: Se o jogador que tem a vez está com vantagem de material, o empate é punido (-0.80)
             piece_vals = {chess.PAWN: 100, chess.KNIGHT: 320, chess.BISHOP: 330, chess.ROOK: 500, chess.QUEEN: 900}
             mat_cur = sum(piece_vals.get(p.piece_type, 0) for p in self.board.piece_map().values() if p.color == self.board.turn)
             mat_opp = sum(piece_vals.get(p.piece_type, 0) for p in self.board.piece_map().values() if p.color != self.board.turn)
@@ -77,17 +77,6 @@ class MCTSNode:
                 self.terminal_value = 0.25
             else:
                 self.terminal_value = 0.0
-        else:
-            # Checagem tática: o jogador com a vez possui lance que dá xeque-mate imediato?
-            for m in self.board.legal_moves:
-                self.board.push(m)
-                if self.board.is_checkmate():
-                    self.board.pop()
-                    self.is_terminal = True
-                    # Quem tem a vez tem mate forçado em 1 lance garantido (+1.0)
-                    self.terminal_value = 1.0
-                    break
-                self.board.pop()
 
     @property
     def q_value(self) -> float:
@@ -111,7 +100,7 @@ class MCTSNode:
         """Expande o nó criando filhos para todos os lances legais com seus priors."""
         self.children.clear()
         for move, prior in move_priors.items():
-            child_board = self.board.copy(stack=True)
+            child_board = self.board.copy(stack=False)
             child_board.push(move)
             self.children[move] = MCTSNode(
                 board=child_board,
@@ -156,9 +145,9 @@ class NeuralMCTS:
 
     def evaluate_board(self, board: chess.Board) -> Tuple[Dict[chess.Move, float], float]:
         """Avalia um tabuleiro usando a rede neural e cache de transposição."""
-        board_fen = board.fen()
-        if board_fen in self.eval_cache:
-            return self.eval_cache[board_fen]
+        cache_key = board._transposition_key()
+        if cache_key in self.eval_cache:
+            return self.eval_cache[cache_key]
 
         legal_moves = list(board.legal_moves)
         if not legal_moves:
@@ -167,20 +156,20 @@ class NeuralMCTS:
             return {}, 0.0
 
         state_tensor = encode_board(board).unsqueeze(0).to(self.device)
-        legal_mask = get_legal_action_mask(board).to(self.device)
+        indices = [encode_move(m, board.turn) for m in legal_moves]
+        idx_tensor = torch.tensor(indices, device=self.device, dtype=torch.long)
 
         self.model.eval()
-        with torch.no_grad():
+        with torch.inference_mode():
             policy_logits, value_out = self.model(state_tensor)
             logits = policy_logits.squeeze(0)
-            masked_logits = torch.where(legal_mask, logits, torch.tensor(-1e9, device=self.device))
-            probs = F.softmax(masked_logits, dim=-1).cpu().numpy()
+            legal_logits = logits[idx_tensor]
+            probs = F.softmax(legal_logits, dim=-1).cpu().numpy()
             eval_val = float(value_out.item())
 
         move_priors: Dict[chess.Move, float] = {}
-        for m in legal_moves:
-            idx = encode_move(m, board.turn)
-            move_priors[m] = float(probs[idx])
+        for m, p in zip(legal_moves, probs):
+            move_priors[m] = float(p)
 
         # Normalizar priors caso haja desvios numéricos
         prior_sum = sum(move_priors.values())
@@ -195,7 +184,7 @@ class NeuralMCTS:
         # Guardar no cache de transposição
         if len(self.eval_cache) > 200_000:
             self.eval_cache.clear()
-        self.eval_cache[board_fen] = (move_priors, eval_val)
+        self.eval_cache[cache_key] = (move_priors, eval_val)
 
         return move_priors, eval_val
 
