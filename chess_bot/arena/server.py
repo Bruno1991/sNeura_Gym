@@ -52,6 +52,15 @@ BOTS_DATA_PATH = CHESS_BOT_ROOT / "bots_data.json"
 if not BOTS_DATA_PATH.is_file():
     BOTS_DATA_PATH = Path(r"C:\dev\s_ADB_Tools\bots_data.json")
 
+# Otimização de Hardware para o Xeon (12 núcleos / 24 threads) e RTX 3060
+try:
+    torch.set_num_threads(12)
+    torch.set_num_interop_threads(6)
+    if torch.cuda.is_available():
+        torch.backends.cudnn.benchmark = True
+except Exception:
+    pass
+
 app = FastAPI(title="GymArena - Mobile Chess Experience", version="4.0")
 
 app.add_middleware(
@@ -226,9 +235,9 @@ class MatchManager:
         white_mat = sum(piece_values.get(p.piece_type, 0) for p in self.board.piece_map().values() if p.color == chess.WHITE)
         black_mat = sum(piece_values.get(p.piece_type, 0) for p in self.board.piece_map().values() if p.color == chess.BLACK)
         net_mat = white_mat - black_mat
-        if net_mat >= 9 and black_mat <= 4:
+        if net_mat >= 9 and black_mat <= 5:
             return True, "1-0", "Vitória das Brancas por Adjudicação TCEC (Vantagem Decisiva)."
-        elif net_mat <= -9 and white_mat <= 4:
+        elif net_mat <= -9 and white_mat <= 5:
             return True, "0-1", "Vitória das Pretas por Adjudicação TCEC (Vantagem Decisiva)."
         return False, "*", ""
 

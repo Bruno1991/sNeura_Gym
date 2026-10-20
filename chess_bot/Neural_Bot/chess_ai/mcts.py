@@ -161,10 +161,14 @@ class NeuralMCTS:
 
         self.model.eval()
         with torch.inference_mode():
-            policy_logits, value_out = self.model(state_tensor)
+            if self.device.type == "cuda":
+                with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+                    policy_logits, value_out = self.model(state_tensor)
+            else:
+                policy_logits, value_out = self.model(state_tensor)
             logits = policy_logits.squeeze(0)
             legal_logits = logits[idx_tensor]
-            probs = F.softmax(legal_logits, dim=-1).cpu().numpy()
+            probs = F.softmax(legal_logits, dim=-1).cpu().float().numpy()
             eval_val = float(value_out.item())
 
         move_priors: Dict[chess.Move, float] = {}
@@ -210,6 +214,19 @@ class NeuralMCTS:
         if not legal_moves:
             return None, {"source": "no_legal_moves"}
 
+        # Fast-Path: se houver exatamente um único lance legal (lance forçado/evasão de xeque)
+        if len(legal_moves) == 1:
+            forced_m = legal_moves[0]
+            return forced_m, {
+                "source": "forced_only_legal_move",
+                "visits": {board.san(forced_m): 1},
+                "q_values": {board.san(forced_m): 0.0},
+                "root_value": 0.0,
+                "simulations": 1,
+                "depth_reached": 1,
+                "principal_variation": [board.san(forced_m)],
+            }
+
         # Detector tático instantâneo de mate em 1
         for m in legal_moves:
             board.push(m)
@@ -254,8 +271,14 @@ class NeuralMCTS:
 
         max_depth_reached = 0
 
+        # Poda adaptativa de simulações se o melhor prior da rede for esmagadoramente dominante (>75%)
+        top_prior_val = max(root_priors.values()) if root_priors else 0.0
+        effective_sims = num_simulations
+        if top_prior_val >= 0.75 and num_simulations > 35:
+            effective_sims = 35
+
         # Loop principal de simulações MCTS
-        for _ in range(num_simulations):
+        for _ in range(effective_sims):
             node = root
             search_path = [node]
             depth = 0
@@ -299,14 +322,14 @@ class NeuralMCTS:
                 value = -value
 
             # Early Stopping Matemático & Dominância AlphaZero
-            if _ >= 30 and (_ % 5 == 0):
+            if _ >= 20 and (_ % 5 == 0):
                 child_visits = sorted([c.visit_count for c in root.children.values()], reverse=True)
                 if len(child_visits) >= 2:
                     top_v, sec_v = child_visits[0], child_visits[1]
-                    remaining = num_simulations - _
+                    remaining = effective_sims - _
                     if (top_v - sec_v) > remaining:
                         break
-                    if _ >= 50 and top_v >= _ * 0.85:
+                    if _ >= 30 and top_v >= _ * 0.80:
                         break
                 elif len(child_visits) == 1:
                     break

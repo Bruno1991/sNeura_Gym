@@ -71,11 +71,12 @@ def ensure_server_running() -> Optional[subprocess.Popen]:
     raise RuntimeError("Falha ao inicializar servidor GymArena na porta 8000.")
 
 
-def load_all_bots(mode: str = "all_elos") -> List[Dict[str, Any]]:
+def load_all_bots(mode: str = "all_217") -> List[Dict[str, Any]]:
     """Carrega bots do catálogo oficial.
     
-    mode="all_elos": Seleciona o bot representante de cada um dos 66 ratings Elo disponíveis (1 a 3200).
-    mode="all": Retorna todos os 200 bots únicos do catálogo.
+    mode="all_217": Retorna todos os 217 bots oficiais de todas as categorias do APK.
+    mode="all_elos": Seleciona o bot representante de cada um dos ratings Elo disponíveis (1 a 3200).
+    mode="unique": Retorna os 200 bots únicos sem repetição entre categorias.
     """
     if not BOTS_DATA_PATH.is_file():
         raise FileNotFoundError(f"Arquivo de bots não encontrado: {BOTS_DATA_PATH}")
@@ -83,32 +84,36 @@ def load_all_bots(mode: str = "all_elos") -> List[Dict[str, Any]]:
     with open(BOTS_DATA_PATH, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    seen = set()
     bot_list = []
+    seen = set()
     for g in data.get("botGroups", []):
         cat_name = g.get("name", "Geral")
         for b in g.get("botPersonalities", []):
             name = b.get("name")
-            if name and name not in seen:
+            if not name:
+                continue
+            if mode == "unique":
+                if name in seen:
+                    continue
                 seen.add(name)
-                bot_list.append({
-                    "name": name,
-                    "rating": int(b.get("rating", 1500)),
-                    "category": cat_name,
-                    "book": b.get("book", "balanced"),
-                    "bio": b.get("bio", b.get("description", "")),
-                })
-
-    bot_list.sort(key=lambda x: (x["rating"], x["name"]))
+            bot_list.append({
+                "name": name,
+                "rating": int(b.get("rating", 1500)),
+                "category": cat_name,
+                "book": b.get("book", "balanced"),
+                "bio": b.get("bio", b.get("description", "")),
+            })
 
     if mode == "all_elos":
         by_elo = {}
-        for b in bot_list:
+        for b in sorted(bot_list, key=lambda x: (x["rating"], x["name"])):
             elo = b["rating"]
             if elo not in by_elo:
                 by_elo[elo] = b
         return [by_elo[e] for e in sorted(by_elo.keys())]
 
+    # Ordenação por rating ascendente e nome para torneio progressivo
+    bot_list.sort(key=lambda x: (x["rating"], x["name"]))
     return bot_list
 
 
@@ -284,15 +289,17 @@ def run_tournament(max_bots: Optional[int] = None, mode: str = "all_elos"):
         page.goto(BASE_URL, wait_until="domcontentloaded")
         page.wait_for_selector("#botsListContainer", timeout=20000)
 
+        completed_keys = {(b["name"], b.get("category")) for b in manager.results_by_bot}
         completed_names = {b["name"] for b in manager.results_by_bot}
 
         for bot_idx, bot in enumerate(selected_bots, 1):
             bot_name = bot["name"]
             bot_elo = bot["rating"]
             bot_cat = bot["category"]
+            bot_key = (bot_name, bot_cat)
 
-            if bot_name in completed_names:
-                print(f"[*] Pulando {bot_name} ({bot_elo} Elo) - já concluído no checkpoint.")
+            if bot_key in completed_keys or bot_name in completed_names:
+                print(f"[*] Pulando [{bot_idx}/{len(selected_bots)}] {bot_name} ({bot_elo} Elo - {bot_cat}) - já concluído no checkpoint.")
                 continue
 
             print("\n" + "=" * 65)
@@ -338,7 +345,7 @@ def run_tournament(max_bots: Optional[int] = None, mode: str = "all_elos"):
                         window.gymArena.selectedMode = 'neural_vs_bot';
                         window.gymArena.selectedColor = '{game_color}';
                         window.gymArena.selectedSims = 200;
-                        window.gymArena.duelSpeed = 10;
+                        window.gymArena.duelSpeed = 5;
                         window.gymArena.setupMatchLayout();
                         window.gymArena.renderBoard();
                         window.gymArena.updateHUD();
@@ -357,7 +364,7 @@ def run_tournament(max_bots: Optional[int] = None, mode: str = "all_elos"):
                 max_game_duration = 360.0  # 6 minutos de limite por partida
 
                 while time.time() - t0 < max_game_duration:
-                    time.sleep(0.5)
+                    time.sleep(0.15)
                     state = page.evaluate("() => window.gymArena ? window.gymArena.gameState : null")
                     if not state:
                         continue
@@ -464,10 +471,14 @@ def run_tournament(max_bots: Optional[int] = None, mode: str = "all_elos"):
 
 if __name__ == "__main__":
     max_count = None
-    tourney_mode = "all_elos"
+    tourney_mode = "all_217"
     for arg in sys.argv[1:]:
-        if arg == "--all":
-            tourney_mode = "all"
+        if arg in ("--all", "--all_217", "--217"):
+            tourney_mode = "all_217"
+        elif arg == "--elos":
+            tourney_mode = "all_elos"
+        elif arg == "--unique":
+            tourney_mode = "unique"
         elif arg == "--fresh":
             if CHECKPOINT_FILE.is_file():
                 CHECKPOINT_FILE.unlink()
