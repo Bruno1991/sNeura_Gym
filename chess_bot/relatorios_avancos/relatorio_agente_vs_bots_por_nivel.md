@@ -1,9 +1,9 @@
 # ♚ RELATÓRIO DO DESAFIO: AGENTE DE IA vs BOTS EM TODOS OS NÍVEIS
 
-> **Data de Execução:** `2026-10-20 17:39:45`  
+> **Data de Execução:** `2026-10-20 17:56:08`  
 > **Jogador:** `Agente Antigravity (LLM Reasoning + Tactical Evaluation)`  
 > **Adversários:** `1 Bot Representante de Cada Degrau de Elo (250 a 3200)`  
-> **Placar Geral:** **3 Vitórias do Agente**, **3 Empates**, **1 Derrotas**  
+> **Placar Geral:** **2 Vitórias do Agente**, **3 Empates**, **2 Derrotas**  
 
 ---
 
@@ -11,13 +11,13 @@
 
 | Nível / Degrau | Bot Adversário | Elo | Cor do Agente | Placar | Vencedor | Lances | Tempo | Desfecho |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Nível 1 - Iniciante (Elo 250)** | **Martin** | 250 | Brancas ⚪ | `1-0` | 🏆 **Agente** | 59 | 4.9s | Xeque-Mate! Vitória de Agente. |
-| **Nível 2 - Amador (Elo 1100)** | **Sven** | 1100 | Pretas ⚫ | `1-0` | 🤖 **Sven** | 27 | 2.7s | Xeque-Mate! Vitória de Sven. |
-| **Nível 3 - Intermediário (Elo 1500)** | **Antonio** | 1500 | Brancas ⚪ | `1-0` | 🏆 **Agente** | 39 | 4.7s | Xeque-Mate! Vitória de Agente. |
-| **Nível 4 - Avançado (Elo 1900)** | **Xavier** | 1900 | Pretas ⚫ | `0-1` | 🏆 **Agente** | 150 | 80.2s | Vitória do Agente por Vantagem Decisiva de Material (+6). |
-| **Nível 5 - Mestre (Elo 2400)** | **Master** | 2400 | Brancas ⚪ | `1/2-1/2` | 🤝 **Empate** | 47 | 12.6s | Empate por Repetição Tripla de Posição. |
-| **Nível 6 - Campeão Mundial (Elo 2882)** | **Magnus Carlsen** | 2882 | Pretas ⚫ | `1/2-1/2` | 🤝 **Empate** | 36 | 29.1s | Empate por Repetição Tripla de Posição. |
-| **Nível 7 - Engine Suprema (Elo 3200)** | **Maximum** | 3200 | Brancas ⚪ | `1/2-1/2` | 🤝 **Empate** | 33 | 28.6s | Empate por Repetição Tripla de Posição. |
+| **Nível 1 - Iniciante (Elo 250)** | **Martin** | 250 | Brancas ⚪ | `1-0` | 🏆 **Agente** | 71 | 31.4s | Xeque-Mate! Vitória de Agente. |
+| **Nível 2 - Amador (Elo 1100)** | **Sven** | 1100 | Pretas ⚫ | `0-1` | 🏆 **Agente** | 30 | 16.4s | Xeque-Mate! Vitória de Agente. |
+| **Nível 3 - Intermediário (Elo 1500)** | **Antonio** | 1500 | Brancas ⚪ | `1/2-1/2` | 🤝 **Empate** | 30 | 4.0s | Empate por Repetição Tripla de Posição. |
+| **Nível 4 - Avançado (Elo 1900)** | **Xavier** | 1900 | Pretas ⚫ | `1-0` | 🤖 **Xavier** | 35 | 16.0s | Xeque-Mate! Vitória de Xavier. |
+| **Nível 5 - Mestre (Elo 2400)** | **Master** | 2400 | Brancas ⚪ | `1/2-1/2` | 🤝 **Empate** | 28 | 9.0s | Empate por Repetição Tripla de Posição. |
+| **Nível 6 - Campeão Mundial (Elo 2882)** | **Magnus Carlsen** | 2882 | Pretas ⚫ | `1/2-1/2` | 🤝 **Empate** | 42 | 40.8s | Empate por Repetição Tripla de Posição. |
+| **Nível 7 - Engine Suprema (Elo 3200)** | **Maximum** | 3200 | Brancas ⚪ | `0-1` | 🤖 **Maximum** | 102 | 131.2s | Xeque-Mate! Vitória de Maximum. |
 
 ---
 
@@ -25,155 +25,155 @@
 
 ### ⚔️ Partida: Agente (white) vs Martin (250 Elo - Nível 1 - Iniciante (Elo 250))
 - **Resultado:** `1-0` — *Xeque-Mate! Vitória de Agente.*
-- **Duração:** 4.9s em 59 lances.
-- **FEN Final:** `8/R4p1r/2p2p2/k1P1r2p/8/2K1P3/PP3PPP/5B1R b - - 2 30`
+- **Duração:** 31.4s em 71 lances.
+- **FEN Final:** `2r5/6Q1/5N1k/6R1/4N3/7P/PP1PPP1P/R1B1KB2 b Q - 0 36`
 
 **Destaques do Raciocínio Tático do Agente:**
 ```text
-Lance 01 (Nf3): Desenvolvimento de peça ativa (Nf3) preparando roque e conectando forças.
-Lance 03 (Ne5): Ocupação do centro com Ne5, dominando as casas vitais da partida.
-Lance 05 (Nc3): Desenvolvimento de peça ativa (Nc3) preparando roque e conectando forças.
-Lance 07 (d4): Ocupação do centro com d4, dominando as casas vitais da partida.
-Lance 09 (Kd2): Desenvolvimento de peça ativa (Kd2) preparando roque e conectando forças.
-Lance 55 (Rd7+): Lance agressivo com xeque Rd7+, desestabilizando o rei adversário.
-Lance 57 (e3+): Lance agressivo com xeque e3+, desestabilizando o rei adversário.
-Lance 59 (Ra7#): Xeque-mate forçado imediato com Ra7#!
+Lance 01 (Nf3): Desenvolvimento harmônico (Nf3) preparando roque e conectando peças.
+Lance 03 (Ne5): Ocupação central com Ne5.
+Lance 05 (Nd3): Desenvolvimento harmônico (Nd3) preparando roque e conectando peças.
+Lance 07 (Nc3): Desenvolvimento harmônico (Nc3) preparando roque e conectando peças.
+Lance 09 (Nb5): Desenvolvimento harmônico (Nb5) preparando roque e conectando peças.
+Lance 67 (Ndxf6): Captura tática segura (Ndxf6) validada por Quiescence Search.
+Lance 69 (Rxg5+): Captura tática segura (Rxg5+) validada por Quiescence Search.
+Lance 71 (Qxg7#): Xeque-mate forçado imediato com Qxg7#!
 ```
 
 **Lances da Partida (Notação SAN):**
-`Nf3 Na6 Ne5 Nf6 Nc3 h5 d4 Nb4 Kd2 Rb8 d5 Rh7 Nb5 Nbxd5 Nxa7 Nb4 Nxc8 Qxc8 c3 c6 cxb4 Ra8 Kc3 c5 bxc5 Ra6 Be3 Rd6 Qa4 Ra6 Qc4 Re6 Nxd7 Kxd7 Qa4+ Qc6 Qxc6+ bxc6 Rd1+ Kc8 Bf4 g5 Bxg5 Kb8 Rd8+ Kb7 Rxf8 Ka6 Ra8+ Kb7 Rd8 Re5 Bxf6 exf6 Rd7+ Ka6 e3+ Ka5 Ra7#`
+`Nf3 d5 Ne5 f6 Nd3 e5 Nc3 Nc6 Nb5 Nge7 Nc5 g6 Nc3 Bg7 Nb5 h5 Nc3 Kf7 Rg1 Nb4 Rh1 Nd3+ Nxd3 Bf5 Nc5 g5 Nxb7 Qe8 Nc5 Kg6 Rg1 Rb8 Na6 Rh6 Nxb8 Bxc2 Qxc2+ Kf7 Na6 Qb8 Nxb8 Rh8 Nd7 Re8 Nc5 h4 Qh7 Rc8 Qd3 e4 Qa6 Rg8 Qxa7 Rc8 Qb7 h3 gxh3 Bh6 Nxd5 Rg8 Qxc7 Bf8 Nxe4 Bg7 Qxe7+ Kg6 Ndxf6 Rc8 Rxg5+ Kh6 Qxg7#`
 
 ---
 
 ### ⚔️ Partida: Agente (black) vs Sven (1100 Elo - Nível 2 - Amador (Elo 1100))
-- **Resultado:** `1-0` — *Xeque-Mate! Vitória de Sven.*
-- **Duração:** 2.7s em 27 lances.
-- **FEN Final:** `1r2kb1r/p3pppp/2Q5/8/5B2/2P2N1R/PP2PqP1/2KR1B2 b k - 0 14`
+- **Resultado:** `0-1` — *Xeque-Mate! Vitória de Agente.*
+- **Duração:** 16.4s em 30 lances.
+- **FEN Final:** `r1b1k1r1/pppp1ppp/8/8/8/5N2/nP1RP1PP/1q1KQB1n w q - 2 16`
 
 **Destaques do Raciocínio Tático do Agente:**
 ```text
-Lance 02 (Nf6): Desenvolvimento de peça ativa (Nf6) preparando roque e conectando forças.
-Lance 04 (Ne4): Ocupação do centro com Ne4, dominando as casas vitais da partida.
-Lance 06 (Nc6): Desenvolvimento de peça ativa (Nc6) preparando roque e conectando forças.
-Lance 08 (Nxc3): Captura tática lucrativa com Nxc3, ganhando material ou eliminando defensor.
-Lance 10 (d5): Ocupação do centro com d5, dominando as casas vitais da partida.
-Lance 22 (Qxf2): Captura tática lucrativa com Qxf2, ganhando material ou eliminando defensor.
-Lance 24 (Nc6): Manobra tática Nc6: melhorando a coordenação e pressionando a estrutura inimiga.
-Lance 26 (Rxb8): Captura tática lucrativa com Rxb8, ganhando material ou eliminando defensor.
+Lance 02 (Nf6): Desenvolvimento harmônico (Nf6) preparando roque e conectando peças.
+Lance 04 (Nc6): Desenvolvimento harmônico (Nc6) preparando roque e conectando peças.
+Lance 06 (Nb4): Desenvolvimento harmônico (Nb4) preparando roque e conectando peças.
+Lance 08 (Ng4): Desenvolvimento harmônico (Ng4) preparando roque e conectando peças.
+Lance 10 (Rg8): Desenvolvimento harmônico (Rg8) preparando roque e conectando peças.
+Lance 26 (Nxb4): Captura tática segura (Nxb4) validada por Quiescence Search.
+Lance 28 (Nxa2+): Captura tática segura (Nxa2+) validada por Quiescence Search.
+Lance 30 (Qb1#): Xeque-mate forçado imediato com Qb1#!
 ```
 
 **Lances da Partida (Notação SAN):**
-`c4 Nf6 Nf3 Ne4 h3 Nc6 Nc3 Nxc3 dxc3 d5 Bf4 Bf5 cxd5 Na5 Qa4+ c6 O-O-O Bxh3 Rxh3 Qb6 dxc6 Qxf2 cxb7+ Nc6 b8=Q+ Rxb8 Qxc6#`
+`d4 Nf6 Nf3 Nc6 d5 Nb4 Nc3 Ng4 Bg5 Rg8 Kd2 Nxf2 Bxe7 Bxe7 Qe1 Nxh1 Ne4 Nxd5 Rd1 Bb4+ c3 Qe7 cxb4 Qxe4 Kc1 Nxb4 Rd2 Nxa2+ Kd1 Qb1#`
 
 ---
 
 ### ⚔️ Partida: Agente (white) vs Antonio (1500 Elo - Nível 3 - Intermediário (Elo 1500))
-- **Resultado:** `1-0` — *Xeque-Mate! Vitória de Agente.*
-- **Duração:** 4.7s em 39 lances.
-- **FEN Final:** `2r1qb1r/pp1npp1p/2b4k/3p2Q1/3P1B2/2N5/PPP1PPPP/R3KB1R b KQ - 0 20`
+- **Resultado:** `1/2-1/2` — *Empate por Repetição Tripla de Posição.*
+- **Duração:** 4.0s em 30 lances.
+- **FEN Final:** `1r2q2r/pb1pkppp/2pbpn2/2p5/N7/8/PPPPPPPP/R1BQKB1R w - - 18 16`
 
 **Destaques do Raciocínio Tático do Agente:**
 ```text
-Lance 01 (Nf3): Desenvolvimento de peça ativa (Nf3) preparando roque e conectando forças.
-Lance 03 (Ne5): Ocupação do centro com Ne5, dominando as casas vitais da partida.
-Lance 05 (Nxd7): Captura tática lucrativa com Nxd7, ganhando material ou eliminando defensor.
-Lance 07 (Nc3): Desenvolvimento de peça ativa (Nc3) preparando roque e conectando forças.
-Lance 09 (d4): Ocupação do centro com d4, dominando as casas vitais da partida.
-Lance 35 (Qg4+): Lance agressivo com xeque Qg4+, desestabilizando o rei adversário.
-Lance 37 (Bf4+): Lance agressivo com xeque Bf4+, desestabilizando o rei adversário.
-Lance 39 (Qxg5#): Xeque-mate forçado imediato com Qxg5#!
+Lance 01 (Nf3): Desenvolvimento harmônico (Nf3) preparando roque e conectando peças.
+Lance 03 (Ne5): Ocupação central com Ne5.
+Lance 05 (Nxc6): Captura tática segura (Nxc6) validada por Quiescence Search.
+Lance 07 (Nc3): Desenvolvimento harmônico (Nc3) preparando roque e conectando peças.
+Lance 09 (Rg1): Desenvolvimento harmônico (Rg1) preparando roque e conectando peças.
+Lance 25 (Na4): Manobra tática (Na4): melhorando coordenação posicional.
+Lance 27 (Nc3): Manobra tática (Nc3): melhorando coordenação posicional.
+Lance 29 (Na4): Manobra tática (Na4): melhorando coordenação posicional.
 ```
 
 **Lances da Partida (Notação SAN):**
-`Nf3 d5 Ne5 Nd7 Nxd7 Bxd7 Nc3 Nf6 d4 Bc6 Bf4 Kd7 Be5 Ke6 Bf4 Kf5 Qd2 Kg6 Be5 Qe8 Bxc7 Rc8 Be5 Nd7 Qd3+ Kg5 Qg3+ Kf5 Qd3+ Kg5 Qg3+ Kf5 Qf4+ Kg6 Qg4+ Kh6 Bf4+ g5 Qxg5#`
+`Nf3 c5 Ne5 Nc6 Nxc6 bxc6 Nc3 Nf6 Rg1 Ba6 Na4 e6 Nc3 Bd6 Rh1 Ke7 Rb1 Qe8 Ra1 Bb7 Rb1 Rb8 Ra1 Be5 Na4 Bd6 Nc3 Be5 Na4 Bd6`
 
 ---
 
 ### ⚔️ Partida: Agente (black) vs Xavier (1900 Elo - Nível 4 - Avançado (Elo 1900))
-- **Resultado:** `0-1` — *Vitória do Agente por Vantagem Decisiva de Material (+6).*
-- **Duração:** 80.2s em 150 lances.
-- **FEN Final:** `7r/1p3k2/p1p5/3p4/6P1/3bBPK1/1P6/8 w - - 8 76`
+- **Resultado:** `1-0` — *Xeque-Mate! Vitória de Xavier.*
+- **Duração:** 16.0s em 35 lances.
+- **FEN Final:** `r1k1Qb2/ppp1p1pp/n2pN3/8/2P5/2B5/PP2PPPP/R3KB1R b KQ - 0 18`
 
 **Destaques do Raciocínio Tático do Agente:**
 ```text
-Lance 02 (Nf6): Desenvolvimento de peça ativa (Nf6) preparando roque e conectando forças.
-Lance 04 (Ne4): Ocupação do centro com Ne4, dominando as casas vitais da partida.
-Lance 06 (Nc6): Desenvolvimento de peça ativa (Nc6) preparando roque e conectando forças.
-Lance 08 (Nd6): Desenvolvimento de peça ativa (Nd6) preparando roque e conectando forças.
-Lance 10 (Nf5): Desenvolvimento de peça ativa (Nf5) preparando roque e conectando forças.
-Lance 146 (Rh8): Manobra tática Rh8: melhorando a coordenação e pressionando a estrutura inimiga.
-Lance 148 (Bd3): Manobra tática Bd3: melhorando a coordenação e pressionando a estrutura inimiga.
-Lance 150 (Kf7): Manobra tática Kf7: melhorando a coordenação e pressionando a estrutura inimiga.
+Lance 02 (Nf6): Desenvolvimento harmônico (Nf6) preparando roque e conectando peças.
+Lance 04 (Ne4): Ocupação central com Ne4.
+Lance 06 (Nxd2): Captura tática segura (Nxd2) validada por Quiescence Search.
+Lance 08 (Nc6): Desenvolvimento harmônico (Nc6) preparando roque e conectando peças.
+Lance 10 (Rg8): Desenvolvimento harmônico (Rg8) preparando roque e conectando peças.
+Lance 30 (Kd7): Manobra tática (Kd7): melhorando coordenação posicional.
+Lance 32 (Kd8): Manobra tática (Kd8): melhorando coordenação posicional.
+Lance 34 (Kc8): Manobra tática (Kc8): melhorando coordenação posicional.
 ```
 
 **Lances da Partida (Notação SAN):**
-`d4 Nf6 Nf3 Ne4 c4 Nc6 Nbd2 Nd6 c5 Nf5 e3 Nb4 Bc4 f6 Qb3 Nd5 Bxd5 e6 Be4 Ne7 Ke2 Rb8 Qd1 Kf7 Qe1 Qe8 Nb3 Qd8 Bd2 Qe8 Bc3 Qd8 Rd1 Qe8 Rd2 Qd8 Rc2 Qe8 Bxh7 Rxh7 c6 Nxc6 Kd2 Kg8 Kc1 Bd6 Re2 Qg6 d5 exd5 Qf1 Qe4 Qe1 Qc4 Rd2 Rh5 Qf1 Qxf1+ Rxf1 Kf7 Nbd4 Nxd4 Bxd4 Ra8 Rfd1 Rh8 Bc3 Rh5 Ba5 c6 Bd8 d4 Rxd4 Rc5+ Rc4 Rxc4+ Kb1 Bxh2 Nxh2 d6 Bc7 Bf5+ Ka1 d5 Bg3 Rh8 Nf3 Rb4 Bd6 Rc4 Ne5+ fxe5 Bxe5 Ke7 Bxg7 Rd8 e4 Rxe4 Bd4 a6 Bc5+ Kf7 Bb6 Rh8 Bd4 Rg8 f3 Rh4 g4 Bc2 Rc1 Bd3 Rd1 Bc4 Kb1 Rh2 Re1 Bd3+ Kc1 Rc2+ Kd1 Rd8 Re3 Bg6 Re2 Rxe2 Kxe2 Bc2 Kd2 Bg6 Bb6 Rh8 Bc7 Ke6 Ke2 Rh1 Kf2 Bd3 Ke3 Bc4 Bf4 Bxa2 Kf2 Bc4 Kg2 Rh8 Kg3 Bd3 Be3 Kf7`
+`d4 Nf6 c4 Ne4 Nd2 Nxd2 Bxd2 Nc6 Nf3 Rg8 d5 Nb8 Bc3 Na6 Qd4 d6 Qf4 Bd7 Ng5 Be6 dxe6 fxe6 Qf7+ Kd7 Qxe6+ Kc6 Qxg8 Qe8 Qd5+ Kd7 Qb5+ Kd8 Ne6+ Kc8 Qxe8#`
 
 ---
 
 ### ⚔️ Partida: Agente (white) vs Master (2400 Elo - Nível 5 - Mestre (Elo 2400))
 - **Resultado:** `1/2-1/2` — *Empate por Repetição Tripla de Posição.*
-- **Duração:** 12.6s em 47 lances.
-- **FEN Final:** `2r1r3/pppbkppp/2p1pn2/8/8/1K3P2/4P1PP/5B1R b - - 14 24`
+- **Duração:** 9.0s em 28 lances.
+- **FEN Final:** `2krq2r/ppp2ppp/2pbpn2/5b2/8/2N5/PPPPPPPP/R1BQKB1R w - - 12 15`
 
 **Destaques do Raciocínio Tático do Agente:**
 ```text
-Lance 01 (Nf3): Desenvolvimento de peça ativa (Nf3) preparando roque e conectando forças.
-Lance 03 (Ne5): Ocupação do centro com Ne5, dominando as casas vitais da partida.
-Lance 05 (Nxc6): Captura tática lucrativa com Nxc6, ganhando material ou eliminando defensor.
-Lance 07 (d4): Ocupação do centro com d4, dominando as casas vitais da partida.
-Lance 09 (Nc3): Desenvolvimento de peça ativa (Nc3) preparando roque e conectando forças.
-Lance 43 (Kb3): Manobra tática Kb3: melhorando a coordenação e pressionando a estrutura inimiga.
-Lance 45 (Kc2): Manobra tática Kc2: melhorando a coordenação e pressionando a estrutura inimiga.
-Lance 47 (Kb3): Manobra tática Kb3: melhorando a coordenação e pressionando a estrutura inimiga.
+Lance 01 (Nf3): Desenvolvimento harmônico (Nf3) preparando roque e conectando peças.
+Lance 03 (Ne5): Ocupação central com Ne5.
+Lance 05 (Nxc6): Captura tática segura (Nxc6) validada por Quiescence Search.
+Lance 07 (Nc3): Desenvolvimento harmônico (Nc3) preparando roque e conectando peças.
+Lance 09 (Rg1): Desenvolvimento harmônico (Rg1) preparando roque e conectando peças.
+Lance 23 (Ra1): Manobra tática (Ra1): melhorando coordenação posicional.
+Lance 25 (Rb1): Manobra tática (Rb1): melhorando coordenação posicional.
+Lance 27 (Ra1): Manobra tática (Ra1): melhorando coordenação posicional.
 ```
 
 **Lances da Partida (Notação SAN):**
-`Nf3 Nf6 Ne5 Nc6 Nxc6 dxc6 d4 e6 Nc3 Bb4 Bd2 Qxd4 Ne4 Qxe4 Bxb4 Qxb4+ c3 Qxb2 Rg1 Qxc3+ Qd2 Qxa1+ Qd1 Qxa2 Rh1 Qa5+ Qd2 Qxd2+ Kxd2 Bd7 Kc2 Ne4 f3 Nf6 Kb3 Ke7 Kc2 Rhe8 Kb3 Rab8 Kc2 Rbc8 Kb3 Rb8 Kc2 Rbc8 Kb3`
+`Nf3 Nf6 Ne5 Nc6 Nxc6 dxc6 Nc3 Bf5 Rg1 Kd7 Rh1 Qe8 Rg1 Rd8 Rh1 e6 Rg1 Bd6 Rh1 Kc8 Rb1 Rd7 Ra1 Rd8 Rb1 Rd7 Ra1 Rd8`
 
 ---
 
 ### ⚔️ Partida: Agente (black) vs Magnus Carlsen (2882 Elo - Nível 6 - Campeão Mundial (Elo 2882))
 - **Resultado:** `1/2-1/2` — *Empate por Repetição Tripla de Posição.*
-- **Duração:** 29.1s em 36 lances.
-- **FEN Final:** `rnbqkb1r/1ppppppB/8/3PP2p/p7/4BN2/PPP2PPP/R1K1Q2R w q - 10 19`
+- **Duração:** 40.8s em 42 lances.
+- **FEN Final:** `r1bq1b1r/pppppkp1/2n2p1p/8/2P5/2P1BNP1/PP1RPPBP/1K2Q2R w - - 16 22`
 
 **Destaques do Raciocínio Tático do Agente:**
 ```text
-Lance 02 (Nf6): Desenvolvimento de peça ativa (Nf6) preparando roque e conectando forças.
-Lance 04 (Ne4): Ocupação do centro com Ne4, dominando as casas vitais da partida.
-Lance 06 (Nc5): Desenvolvimento de peça ativa (Nc5) preparando roque e conectando forças.
-Lance 08 (Ne4): Ocupação do centro com Ne4, dominando as casas vitais da partida.
-Lance 10 (Nxd2): Captura tática lucrativa com Nxd2, ganhando material ou eliminando defensor.
-Lance 32 (Rh8): Manobra tática Rh8: melhorando a coordenação e pressionando a estrutura inimiga.
-Lance 34 (Rg8): Manobra tática Rg8: melhorando a coordenação e pressionando a estrutura inimiga.
-Lance 36 (Rh8): Manobra tática Rh8: melhorando a coordenação e pressionando a estrutura inimiga.
+Lance 02 (Nc6): Desenvolvimento harmônico (Nc6) preparando roque e conectando peças.
+Lance 04 (Nf6): Desenvolvimento harmônico (Nf6) preparando roque e conectando peças.
+Lance 06 (Ne4): Ocupação central com Ne4.
+Lance 08 (Nxc3): Captura tática segura (Nxc3) validada por Quiescence Search.
+Lance 10 (Rg8): Desenvolvimento harmônico (Rg8) preparando roque e conectando peças.
+Lance 38 (Rh8): Manobra tática (Rh8): melhorando coordenação posicional.
+Lance 40 (Rg8): Manobra tática (Rg8): melhorando coordenação posicional.
+Lance 42 (Rh8): Manobra tática (Rh8): melhorando coordenação posicional.
 ```
 
 **Lances da Partida (Notação SAN):**
-`e4 Nf6 e5 Ne4 d3 Nc5 d4 Ne4 Nd2 Nxd2 Bxd2 Nc6 Nf3 Rg8 d5 Nb8 Bd3 h5 Bc3 Rh8 Kd2 Rh6 Bd4 a5 Qe1 a4 Be3 Rh8 Kc1 Rg8 Bh7 Rh8 Bd3 Rg8 Bh7 Rh8`
+`Nf3 Nc6 c4 Nf6 g3 Ne4 Nc3 Nxc3 dxc3 Rg8 Be3 h6 Bg2 Rh8 Kd2 Rb8 Qe1 Ra8 Rd1 Rb8 Kc2 Ra8 Rd2 Rg8 Bf4 f6 Kb1 Rh8 Kc1 Rg8 Be3 Kf7 Bf4 Rh8 Kb1 Rg8 Be3 Rh8 Bf4 Rg8 Be3 Rh8`
 
 ---
 
 ### ⚔️ Partida: Agente (white) vs Maximum (3200 Elo - Nível 7 - Engine Suprema (Elo 3200))
-- **Resultado:** `1/2-1/2` — *Empate por Repetição Tripla de Posição.*
-- **Duração:** 28.6s em 33 lances.
-- **FEN Final:** `2kr3r/pppqppb1/2b4p/3p3n/3P2p1/2NQB3/PPP1PPPP/R3KBR1 b Q - 7 17`
+- **Resultado:** `0-1` — *Xeque-Mate! Vitória de Maximum.*
+- **Duração:** 131.2s em 102 lances.
+- **FEN Final:** `rk6/pp5r/3pb1p1/1Qp5/4qBKb/2P4P/PP5P/R4B1R w - - 2 52`
 
 **Destaques do Raciocínio Tático do Agente:**
 ```text
-Lance 01 (Nf3): Desenvolvimento de peça ativa (Nf3) preparando roque e conectando forças.
-Lance 03 (Ne5): Ocupação do centro com Ne5, dominando as casas vitais da partida.
-Lance 05 (Nxd7): Captura tática lucrativa com Nxd7, ganhando material ou eliminando defensor.
-Lance 07 (Nc3): Desenvolvimento de peça ativa (Nc3) preparando roque e conectando forças.
-Lance 09 (d4): Ocupação do centro com d4, dominando as casas vitais da partida.
-Lance 29 (Be3): Manobra tática Be3: melhorando a coordenação e pressionando a estrutura inimiga.
-Lance 31 (Bf4): Manobra tática Bf4: melhorando a coordenação e pressionando a estrutura inimiga.
-Lance 33 (Be3): Manobra tática Be3: melhorando a coordenação e pressionando a estrutura inimiga.
+Lance 01 (Nf3): Desenvolvimento harmônico (Nf3) preparando roque e conectando peças.
+Lance 03 (Nc3): Desenvolvimento harmônico (Nc3) preparando roque e conectando peças.
+Lance 05 (Nd4): Ocupação central com Nd4.
+Lance 07 (Ncb5): Desenvolvimento harmônico (Ncb5) preparando roque e conectando peças.
+Lance 09 (f3): Desenvolvimento harmônico (f3) preparando roque e conectando peças.
+Lance 97 (e4): Ocupação central com e4 (controle central com peão).
+Lance 99 (Bf4): Manobra tática (Bf4): melhorando coordenação posicional.
+Lance 101 (Kg4): Manobra tática (Kg4): melhorando coordenação posicional.
 ```
 
 **Lances da Partida (Notação SAN):**
-`Nf3 d5 Ne5 Nd7 Nxd7 Bxd7 Nc3 Nf6 d4 h6 Bf4 Bc6 Be5 Nd7 Bf4 g5 Be3 Nf6 Qd3 Qd7 Rg1 O-O-O Rh1 Bg7 Rg1 g4 Bf4 Nh5 Be3 Nf6 Bf4 Nh5 Be3`
+`Nf3 d6 Nc3 Nf6 Nd4 Bg4 Ncb5 Nbd7 f3 Bh5 Nc3 Nb6 Nf5 Bg6 Nd4 Kd7 Ncb5 c6 Nc3 Qe8 Kf2 Kc8 Qe1 Rb8 Kg1 c5 Ndb5 Bxc2 Na3 Bg6 Nab5 Ra8 Qh4 h6 Qf4 Kb8 Qh4 Nfd5 Nxd5 Nxd5 Qc4 Nf6 Nc3 e5 Qh4 Be7 Qc4 Bc2 Qh4 Bf5 Qc4 Rh7 Qh4 Bg6 Qc4 Bc2 Qh4 Ne4 Qh5 Nf6 Qh4 Ne4 Qh5 g6 Qg4 h5 Qh3 Nxc3 dxc3 Bf5 Qg3 h4 Qf2 h3 gxh3 Bh4 Qe3 Bf6 Qd2 Qc6 Kf2 Qb6 Kg3 Qd8 Qd5 Qf8 Qc4 e4 fxe4 Be6 Qb5 Bh4+ Kf3 f5 exf5 Bd5+ e4 Qxf5+ Bf4 Qxe4+ Kg4 Be6#`
 
 ---
 

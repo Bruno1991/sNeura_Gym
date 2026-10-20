@@ -271,10 +271,20 @@ class NeuralMCTS:
 
         max_depth_reached = 0
 
-        # Poda adaptativa de simulações se o melhor prior da rede for esmagadoramente dominante (>75%)
+        # Budget Adaptativo Dinâmico de Simulações MCTS:
+        # Posições de alta tensão (xeque, peças de alto valor sob ataque ou jogo complexo)
+        # ganham extensão de budget; posições com dominância clara encerram mais rápido.
         top_prior_val = max(root_priors.values()) if root_priors else 0.0
+        is_in_check = board.is_check()
+        has_heavy_attack = any(
+            board.is_attacked_by(not board.turn, sq)
+            for sq, p in board.piece_map().items()
+            if p.color == board.turn and p.piece_type in (chess.QUEEN, chess.ROOK)
+        )
         effective_sims = num_simulations
-        if top_prior_val >= 0.75 and num_simulations > 35:
+        if is_in_check or has_heavy_attack:
+            effective_sims = int(num_simulations * 1.5)
+        elif top_prior_val >= 0.80 and num_simulations > 35:
             effective_sims = 35
 
         # Loop principal de simulações MCTS
@@ -305,13 +315,21 @@ class NeuralMCTS:
             if depth > max_depth_reached:
                 max_depth_reached = depth
 
-            # 2. EXPANSÃO E AVALIAÇÃO DO NÓ FOLHA
+            # 2. EXPANSÃO E AVALIAÇÃO DO NÓ FOLHA (COM QUIESCENCE SEE)
             if node.is_terminal:
                 value = node.terminal_value
             else:
                 priors, value = self.evaluate_board(node.board)
                 if not node.board.is_game_over(claim_draw=True):
                     node.expand(priors)
+                    # Quiescence Rollout com SEE: refina a avaliação neural contra blunders de troca imediata
+                    if any(node.board.is_capture(m) for m in node.board.legal_moves):
+                        from .tactics import find_punitive_captures
+                        punitive = find_punitive_captures(node.board)
+                        if punitive:
+                            best_gain = max(p[1] for p in punitive)
+                            if best_gain >= 180:
+                                value = min(1.0, value + (best_gain / 1000.0) * 0.35)
 
             # 3. BACKPROPAGATION (MINIMAX RETROSPECTIVO)
             # O valor 'value' é da perspectiva do jogador com a vez no nó folha.

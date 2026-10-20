@@ -124,8 +124,50 @@ class AgentPlayer:
 
         return score
 
+    def quiescence_search(
+        self,
+        board: chess.Board,
+        alpha: float,
+        beta: float,
+        color: chess.Color,
+        depth_left: int = 4,
+    ) -> float:
+        """Busca de Tranquilidade (Quiescence Search) com SEE para resolver trocas forçadas e eliminar o efeito horizonte."""
+        stand_pat = self.evaluate_static(board, color)
+        if depth_left <= 0 or board.is_game_over():
+            return stand_pat
+        if stand_pat >= beta:
+            return beta
+        if stand_pat > alpha:
+            alpha = stand_pat
+
+        # Lances barulhentos: capturas, promoções de peão e xeques
+        noisy = [m for m in board.legal_moves if board.is_capture(m) or m.promotion or board.gives_check(m)]
+        if not noisy:
+            return stand_pat
+
+        def noisy_priority(m: chess.Move) -> int:
+            cap = board.piece_at(m.to_square)
+            att = board.piece_at(m.from_square)
+            cap_v = self.PIECE_VALUES.get(cap.piece_type, 0) if cap else (900 if m.promotion else 100)
+            att_v = self.PIECE_VALUES.get(att.piece_type, 0) if att else 100
+            return cap_v * 10 - att_v + (400 if board.gives_check(m) else 0)
+
+        for m in sorted(noisy, key=noisy_priority, reverse=True)[:8]:
+            board.push(m)
+            # Avalia da perspectiva do oponente e inverte
+            score = -self.quiescence_search(board, -beta, -alpha, not color, depth_left - 1)
+            board.pop()
+
+            if score >= beta:
+                return beta
+            if score > alpha:
+                alpha = score
+
+        return alpha
+
     def get_best_move(self, board: chess.Board) -> Tuple[chess.Move, str]:
-        """Calcula o melhor lance e retorna o lance e a justificativa estratégica."""
+        """Calcula o melhor lance e retorna o lance e a justificativa estratégica turbinada."""
         legal_moves = list(board.legal_moves)
         if not legal_moves:
             raise ValueError("Sem lances legais disponíveis.")
@@ -138,27 +180,34 @@ class AgentPlayer:
                 return m, f"Xeque-mate forçado imediato com {board.san(m)}!"
             board.pop()
 
-        # 2. Evitar Mate em 1 do adversário
+        # 2. Guarda Anti-Mate e Anti-Promoção Fatal do adversário (2 plies à frente)
         safe_moves = []
         for m in legal_moves:
             board.push(m)
             opp_has_mate = False
+            opp_has_queen_promo = False
             for opp_m in board.legal_moves:
                 board.push(opp_m)
                 if board.is_checkmate():
                     opp_has_mate = True
-                    board.pop()
-                    break
+                elif opp_m.promotion and opp_m.promotion == chess.QUEEN and board.is_check():
+                    opp_has_queen_promo = True
                 board.pop()
+                if opp_has_mate or opp_has_queen_promo:
+                    break
             board.pop()
-            if not opp_has_mate:
+            if not opp_has_mate and not opp_has_queen_promo:
                 safe_moves.append(m)
-        if safe_moves:
-            candidate_moves = safe_moves
-        else:
-            candidate_moves = legal_moves
 
-        # 3. Busca de 2 Lances (Mini-Search com Poda Alfa-Beta para precisão tática)
+        candidate_moves = safe_moves if safe_moves else legal_moves
+
+        # 3. Budget Adaptativo Dinâmico de Busca
+        # Se estiver sob xeque ou com alta tensão tática, expande os candidatos avaliados
+        is_tense = board.is_check() or any(board.is_capture(m) for m in legal_moves)
+        eval_cand_limit = 16 if is_tense else 10
+        opp_replies_limit = 10 if is_tense else 6
+        q_depth = 4 if is_tense else 3
+
         best_move = candidate_moves[0]
         best_score = -float("inf")
         best_reason = "Desenvolvimento padrão de peça."
@@ -166,7 +215,6 @@ class AgentPlayer:
         color = board.turn
         fullmove = board.fullmove_number
 
-        # Classificar lances para melhorar poda
         def move_priority(m: chess.Move) -> int:
             p = 0
             if board.is_capture(m):
@@ -179,14 +227,15 @@ class AgentPlayer:
                 p += 500
             if board.is_castling(m):
                 p += 300
+            if m.promotion:
+                p += 800
             return p
 
-        sorted_moves = sorted(candidate_moves, key=move_priority, reverse=True)
+        sorted_moves = sorted(candidate_moves, key=move_priority, reverse=True)[:eval_cand_limit]
 
         for m in sorted_moves:
             board.push(m)
-            
-            # Resposta do adversário: assumir que ele joga o melhor lance para ele
+
             opp_moves = list(board.legal_moves)
             if not opp_moves:
                 if board.is_checkmate():
@@ -194,13 +243,12 @@ class AgentPlayer:
                 else:
                     opp_eval = 0.0
             else:
-                # Pior cenário para nós
                 opp_eval = float("inf")
-                # Avaliar as 6 respostas mais ameaçadoras do oponente
-                sorted_opp = sorted(opp_moves, key=lambda om: 1000 if board.is_capture(om) or board.gives_check(om) else 0, reverse=True)[:8]
+                sorted_opp = sorted(opp_moves, key=lambda om: 1000 if board.is_capture(om) or board.gives_check(om) else 0, reverse=True)[:opp_replies_limit]
                 for om in sorted_opp:
                     board.push(om)
-                    eval_node = self.evaluate_static(board, color)
+                    # Quiescence Search no nó folha para eliminar o efeito horizonte
+                    eval_node = self.quiescence_search(board, -float("inf"), float("inf"), color, depth_left=q_depth)
                     board.pop()
                     if eval_node < opp_eval:
                         opp_eval = eval_node
@@ -211,7 +259,6 @@ class AgentPlayer:
             bonus = 0.0
             san = board.san(m)
             if fullmove <= 8:
-                # Incentivo a controle de centro e roque
                 if m.to_square in [chess.E4, chess.D4, chess.E5, chess.D5]:
                     bonus += 35.0
                 if board.is_castling(m):
@@ -226,19 +273,19 @@ class AgentPlayer:
                 best_score = total_score
                 best_move = m
 
-                # Formular justificativa
                 if board.is_capture(m):
-                    best_reason = f"Captura tática lucrativa com {san}, ganhando material ou eliminando defensor."
+                    best_reason = f"Captura tática segura ({san}) validada por Quiescence Search."
                 elif board.is_castling(m):
-                    best_reason = f"Roque {san}: garantindo segurança do rei e ativando a torre na coluna central."
+                    best_reason = f"Roque ({san}): garantindo proteção do rei e ativando a torre."
                 elif board.gives_check(m):
-                    best_reason = f"Lance agressivo com xeque {san}, desestabilizando o rei adversário."
+                    best_reason = f"Xeque ativo ({san}), desestruturando as forças do oponente."
                 elif m.to_square in [chess.E4, chess.D4, chess.E5, chess.D5]:
-                    best_reason = f"Ocupação do centro com {san}, dominando as casas vitais da partida."
+                    bonus_str = " (controle central com peão)" if board.piece_at(m.from_square).piece_type == chess.PAWN else ""
+                    best_reason = f"Ocupação central com {san}{bonus_str}."
                 elif fullmove <= 10:
-                    best_reason = f"Desenvolvimento de peça ativa ({san}) preparando roque e conectando forças."
+                    best_reason = f"Desenvolvimento harmônico ({san}) preparando roque e conectando peças."
                 else:
-                    best_reason = f"Manobra tática {san}: melhorando a coordenação e pressionando a estrutura inimiga."
+                    best_reason = f"Manobra tática ({san}): melhorando coordenação posicional."
 
         return best_move, best_reason
 
