@@ -54,8 +54,8 @@ if not BOTS_DATA_PATH.is_file():
 
 # Otimização de Hardware para o Xeon (12 núcleos / 24 threads) e RTX 3060
 try:
-    torch.set_num_threads(12)
-    torch.set_num_interop_threads(6)
+    torch.set_num_threads(4)
+    torch.set_num_interop_threads(2)
     if torch.cuda.is_available():
         torch.backends.cudnn.benchmark = True
 except Exception:

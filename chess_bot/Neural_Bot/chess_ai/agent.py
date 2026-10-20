@@ -46,13 +46,28 @@ class NeuralChessBot:
         self.model: Optional[ChessPolicyValueNet] = model
         self.weights_path = Path(weights_path) if weights_path else None
         self.use_book = use_book
+        self.opening_books: List[Path] = []
         if fallback_book_path:
-            self.fallback_book_path = Path(fallback_book_path)
-        elif use_book:
-            default_book = Path(__file__).resolve().parent.parent.parent / "Scripted_Bot" / "assets" / "balanced.bin"
-            self.fallback_book_path = default_book if default_book.is_file() else None
-        else:
-            self.fallback_book_path = None
+            p = Path(fallback_book_path)
+            if p.is_file():
+                self.opening_books.append(p)
+        if use_book:
+            base_books = Path(__file__).resolve().parent.parent.parent / "books"
+            scripted_assets = Path(__file__).resolve().parent.parent.parent / "Scripted_Bot" / "assets"
+            # Prioridade de livros de elite: Nakamura (GM agressivo), Classical, Indian, Balanced
+            candidates = [
+                base_books / "nakamura.bin",
+                scripted_assets / "nakamura.bin",
+                base_books / "classical.bin",
+                scripted_assets / "classical.bin",
+                base_books / "indian.bin",
+                scripted_assets / "indian.bin",
+                base_books / "balanced.bin",
+                scripted_assets / "balanced.bin",
+            ]
+            for c in candidates:
+                if c.is_file() and c not in self.opening_books:
+                    self.opening_books.append(c)
         self.use_mcts = use_mcts
         self.mcts_sims = mcts_sims
         self.mcts_c_puct = mcts_c_puct
@@ -136,21 +151,23 @@ class NeuralChessBot:
             # Fallback se a rede ainda não tiver pesos salvos
             return legal_moves[0], {"source": "fallback_uninitialized"}
 
-        # 0. Livro Canônico Polyglot nos primeiros lances de abertura
-        if self.use_book and self.fallback_book_path and self.fallback_book_path.is_file() and board.ply() < 16:
-            try:
-                with chess.polyglot.open_reader(str(self.fallback_book_path)) as reader:
-                    entry = reader.get(board)
-                    if entry is not None and entry.move in board.legal_moves:
-                        return entry.move, {
-                            "source": "polyglot_opening_book",
-                            "san": board.san(entry.move),
-                            "weight": entry.weight,
-                            "value": 0.0,
-                            "probability": 1.0,
-                        }
-            except Exception:
-                pass
+        # 0. Repertório Polyglot de Elite de Aberturas (Multi-Book Encadeado) até ply 24
+        if self.use_book and self.opening_books and board.ply() < 24:
+            for book_path in self.opening_books:
+                try:
+                    with chess.polyglot.open_reader(str(book_path)) as reader:
+                        entry = reader.get(board)
+                        if entry is not None and entry.move in board.legal_moves:
+                            return entry.move, {
+                                "source": "polyglot_opening_book",
+                                "book": book_path.stem,
+                                "san": board.san(entry.move),
+                                "weight": entry.weight,
+                                "value": 0.0,
+                                "probability": 1.0,
+                            }
+                except Exception:
+                    continue
 
         # 1. Detector de Xeque-Mate Imediato a favor (vitória instantânea)
         for m in legal_moves:
@@ -223,9 +240,9 @@ class NeuralChessBot:
         piece_vals = {chess.PAWN: 100, chess.KNIGHT: 320, chess.BISHOP: 330, chess.ROOK: 500, chess.QUEEN: 900}
         mat_cur = sum(piece_vals.get(p.piece_type, 0) for p in board.piece_map().values() if p.color == board.turn)
         mat_opp = sum(piece_vals.get(p.piece_type, 0) for p in board.piece_map().values() if p.color != board.turn)
-        is_ahead = (mat_cur >= mat_opp) or (eval_val >= 0.0)
+        is_contempt_active = (mat_cur >= mat_opp - 150) or (eval_val >= -0.45)
 
-        if is_ahead and len(sorted_moves) > 1:
+        if is_contempt_active and len(sorted_moves) > 1:
             non_draw_moves = []
             for m, p in sorted_moves:
                 board.push(m)
@@ -246,7 +263,7 @@ class NeuralChessBot:
                         progressive_moves.append((m, p))
                 if progressive_moves:
                     sorted_moves = progressive_moves
-        elif not is_ahead and (mat_opp - mat_cur >= 200 or eval_val <= -0.4):
+        elif not is_contempt_active and (mat_opp - mat_cur >= 200 or eval_val <= -0.4):
             # Salvação Tática de Finais (Swindle): se estamos perdendo material, o empate por repetição é vitória!
             for m, p in sorted_moves:
                 board.push(m)

@@ -96,18 +96,29 @@ class MCTSNode:
         q = -self.q_value if self.visit_count > 0 else 0.0
         return q + exploration
 
-    def expand(self, move_priors: Dict[chess.Move, float]):
-        """Expande o nó criando filhos para todos os lances legais com seus priors."""
+    def expand(self, move_priors: Dict[chess.Move, float], transposition_graph: Optional[Dict[int, MCTSNode]] = None):
+        """Expande o nó criando filhos para todos os lances legais com seus priors e Zobrist Transposition Graph."""
         self.children.clear()
         for move, prior in move_priors.items():
             child_board = self.board.copy(stack=False)
             child_board.push(move)
-            self.children[move] = MCTSNode(
+            z_hash = chess.polyglot.zobrist_hash(child_board)
+
+            # Se a posição já foi explorada em outro ramo da busca, compartilha visitas e valor Q (DAG)
+            cached_node = transposition_graph.get(z_hash) if transposition_graph is not None else None
+            child_node = MCTSNode(
                 board=child_board,
                 parent=self,
                 parent_move=move,
                 prior=prior,
             )
+            if cached_node is not None and cached_node.visit_count > 0:
+                child_node.visit_count = cached_node.visit_count
+                child_node.total_value = cached_node.total_value
+            elif transposition_graph is not None:
+                transposition_graph[z_hash] = child_node
+
+            self.children[move] = child_node
         self.is_expanded = True
 
 
