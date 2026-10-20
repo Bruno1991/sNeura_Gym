@@ -1,6 +1,6 @@
 # ♛ Relatório Analítico: Bateria de 9 Partidas do Neural_Bot (Chess.com Arena)
 
-> **Data de Execução**: 19 de Outubro de 2026 às 18:22  
+> **Data de Execução**: 20 de Outubro de 2026 às 08:16  
 > **Dispositivo Hardware**: NVIDIA GeForce RTX 3060 (12 GB VRAM)  
 > **Aceleração**: PyTorch Automatic Mixed Precision (AMP FP16 com GradScaler)  
 > **Workers Paralelos**: 64 Partidas Simultâneas na GPU  
@@ -19,18 +19,18 @@ O **Neural_Bot** disputou uma bateria massiva de **9 partidas** contra os **217 
 ```mermaid
 pie title Distribuição de Resultados (9 Partidas)
     "Vitórias do Neural_Bot" : 0
-    "Empates (Defesa Sólida)" : 2
-    "Derrotas (Bots Adversários)" : 7
+    "Empates (Defesa Sólida)" : 0
+    "Derrotas (Bots Adversários)" : 9
 ```
 
 | Métrica Global | Valor Obtido | Percentual / Taxa | Referência (5.000 Jogos) | Evolução |
 | :--- | :---: | :---: | :---: | :---: |
 | **Total de Partidas Concluídas** | **9** | 100% | 5.003 | **+-4,994** |
 | **Vitórias do Neural_Bot** | **0** | **0.0%** | 20,6% | **-20.6%** |
-| **Empates Conquistados** | **2** | **22.2%** | 52,0% | **-29.8%** |
-| **Derrotas Sofridas** | **7** | **77.8%** | 27,4% | **+50.4%** |
-| **Pontuação Geral (Score Elo)** | **1.0 pts** | **11.1%** | 46,6% | **-35.5%** |
-| **Loss Final (AMP FP16)** | **7.3990** | -0.0% | 0.3442 | **Convergência Aumentada** |
+| **Empates Conquistados** | **0** | **0.0%** | 52,0% | **-52.0%** |
+| **Derrotas Sofridas** | **9** | **100.0%** | 27,4% | **+72.6%** |
+| **Pontuação Geral (Score Elo)** | **0.0 pts** | **0.0%** | 46,6% | **-46.6%** |
+| **Loss Final (AMP FP16)** | **7.4678** | -0.0% | 0.3442 | **Convergência Aumentada** |
 
 > [!NOTE]
 > Com a calibração de **120 plies** e a **penalização de empates passivos**, a taxa de conversão do Neural_Bot demonstrou um salto de agressividade posicional, convertendo posições de vantagem em vitórias claras.
@@ -41,7 +41,7 @@ pie title Distribuição de Resultados (9 Partidas)
 
 | Faixa de Elo | Partidas Disputadas | Vitórias Neural | Empates | Derrotas | Taxa Vit. (%) | Aproveitamento (Score) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Elite (2700-3200)** | 9 | 0 | 2 | 7 | 0.0% | **11.1%** |
+| **Elite (2700-3200)** | 9 | 0 | 0 | 9 | 0.0% | **0.0%** |
 
 ```mermaid
 gantt
@@ -49,16 +49,16 @@ gantt
     dateFormat X
     axisFormat %s
     section Faixas de Elo
-    Elite (2700-3200) [11.1%] : 0, 11
+    Elite (2700-3200) [0.0%] : 0, 0
 ```
 
 ---
 
 ## 3. Curva de Aprendizado & Otimização na GPU (AMP FP16)
 
-* **Loss Global:** Redução de `7.3990` para `7.3990` (**-0.0%**)
-* **Policy Loss (Precisão de Lances):** Redução de `7.1812` para `7.1812` (**-0.0%**)
-* **Value Loss (Avaliação Posicional):** Redução de `0.4356` para `0.4356` (**-0.0%**)
+* **Loss Global:** Redução de `7.4678` para `7.4678` (**-0.0%**)
+* **Policy Loss (Precisão de Lances):** Redução de `7.1785` para `7.1785` (**-0.0%**)
+* **Value Loss (Avaliação Posicional):** Redução de `0.5786` para `0.5786` (**-0.0%**)
 
 ---
 
@@ -66,7 +66,7 @@ gantt
 
 | Adversário | Elo Oficial | Partidas | Vitórias Neural | Empates | Derrotas | Aproveitamento (Score) | Status |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Maximum** | 3200 | 9 | **0** | 2 | 7 | **11.1%** | Matchup Desafiador |
+| **Maximum** | 3200 | 9 | **0** | 0 | 9 | **0.0%** | Matchup Desafiador |
 
 ---
 

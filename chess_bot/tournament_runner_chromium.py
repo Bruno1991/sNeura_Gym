@@ -322,7 +322,7 @@ def run_tournament(max_bots: Optional[int] = None, mode: str = "all_elos"):
                     "bot_elo": bot_elo,
                     "neural_mode": "mcts",
                     "mcts_sims": 200,
-                    "step_delay": 0.1,
+                    "step_delay": 0.01,
                     "auto_play": True,
                 }
 
@@ -338,7 +338,7 @@ def run_tournament(max_bots: Optional[int] = None, mode: str = "all_elos"):
                         window.gymArena.selectedMode = 'neural_vs_bot';
                         window.gymArena.selectedColor = '{game_color}';
                         window.gymArena.selectedSims = 200;
-                        window.gymArena.duelSpeed = 100;
+                        window.gymArena.duelSpeed = 10;
                         window.gymArena.setupMatchLayout();
                         window.gymArena.renderBoard();
                         window.gymArena.updateHUD();
@@ -357,7 +357,7 @@ def run_tournament(max_bots: Optional[int] = None, mode: str = "all_elos"):
                 max_game_duration = 360.0  # 6 minutos de limite por partida
 
                 while time.time() - t0 < max_game_duration:
-                    time.sleep(1.2)
+                    time.sleep(0.5)
                     state = page.evaluate("() => window.gymArena ? window.gymArena.gameState : null")
                     if not state:
                         continue

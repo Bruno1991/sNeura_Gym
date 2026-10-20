@@ -298,6 +298,19 @@ class NeuralMCTS:
                 n.total_value += value
                 value = -value
 
+            # Early Stopping Matemático & Dominância AlphaZero
+            if _ >= 30 and (_ % 5 == 0):
+                child_visits = sorted([c.visit_count for c in root.children.values()], reverse=True)
+                if len(child_visits) >= 2:
+                    top_v, sec_v = child_visits[0], child_visits[1]
+                    remaining = num_simulations - _
+                    if (top_v - sec_v) > remaining:
+                        break
+                    if _ >= 50 and top_v >= _ * 0.85:
+                        break
+                elif len(child_visits) == 1:
+                    break
+
         # 4. ESCOLHA DO MELHOR LANCE NA RAIZ
         visit_counts: Dict[chess.Move, int] = {m: child.visit_count for m, child in root.children.items()}
         q_values: Dict[chess.Move, float] = {m: child.q_value for m, child in root.children.items()}

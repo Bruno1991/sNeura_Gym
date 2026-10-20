@@ -229,5 +229,16 @@
     "loss": 5.2613465785980225,
     "policy_loss": 5.063852548599243,
     "value_loss": 0.3949878364801407
+  },
+  {
+    "timestamp": 1792498530.3245976,
+    "game_number": 1,
+    "opponent": "Martin",
+    "outcome": 1.0,
+    "outcome_description": "Vit\u00f3ria Neural por Xeque-Mate",
+    "positions_trained": 43,
+    "loss": 5.570157051086426,
+    "policy_loss": 5.415462970733643,
+    "value_loss": 0.3093883693218231
   }
 ]

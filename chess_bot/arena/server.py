@@ -258,6 +258,21 @@ class MatchManager:
             is_over = self.board.is_game_over(claim_draw=True)
             game_result = self.board.result(claim_draw=True) if is_over else "*"
             result_desc = ""
+
+            # Adjudicação TCEC de Finais Decididos (Win Adjudication)
+            if not is_over and self.board.fullmove_number >= 30:
+                net_mat = white_mat - black_mat
+                white_decisive = (net_mat >= 9 and black_mat <= 4)
+                black_decisive = (net_mat <= -9 and white_mat <= 4)
+                if white_decisive:
+                    is_over = True
+                    game_result = "1-0"
+                    result_desc = "Vitória das Brancas por Adjudicação TCEC (Vantagem Decisiva)."
+                elif black_decisive:
+                    is_over = True
+                    game_result = "0-1"
+                    result_desc = "Vitória das Pretas por Adjudicação TCEC (Vantagem Decisiva)."
+
             if self.board.is_checkmate():
                 winner = "Brancas" if self.board.turn == chess.BLACK else "Pretas"
                 result_desc = f"Xeque-Mate! Vitória das {winner}."

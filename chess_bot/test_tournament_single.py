@@ -54,23 +54,22 @@ def test_single_series():
         page.goto(BASE_URL, wait_until="domcontentloaded")
         page.wait_for_selector("#botsListContainer", timeout=15000)
 
-        # Configurar parâmetros via API da janela
+        # Configurar parâmetros via API da janela (Modo Turbo Headless)
         page.evaluate("""() => {
             if (window.gymArena) {
                 window.gymArena.selectedMode = 'neural_vs_bot';
                 window.gymArena.selectedSims = 200;
                 window.gymArena.mctsActive = true;
-                window.gymArena.duelSpeed = 100;
+                window.gymArena.duelSpeed = 10;
             }
         }""")
 
         bot_name = "Martin"
         bot_elo = 250
-        print(f"[*] Testando Melhor de 3 contra {bot_name} ({bot_elo} Elo)...")
+        print(f"[*] Testando Melhor de 3 TURBO contra {bot_name} ({bot_elo} Elo)...")
 
         series_results = []
         for game_num in range(1, 4):
-            # Escolher cor aleatória
             import random
             color = random.choice(["white", "black"])
             print(f"\n--- Partida {game_num}/3 (Neural jogando de {color.upper()}) ---")
@@ -86,7 +85,7 @@ def test_single_series():
                         bot_elo: {bot_elo},
                         neural_mode: 'mcts',
                         mcts_sims: 200,
-                        step_delay: 0.1,
+                        step_delay: 0.01,
                         auto_play: true
                     }})
                 }});
@@ -96,7 +95,7 @@ def test_single_series():
                     window.gymArena.selectedMode = 'neural_vs_bot';
                     window.gymArena.selectedColor = '{color}';
                     window.gymArena.selectedSims = 200;
-                    window.gymArena.duelSpeed = 100;
+                    window.gymArena.duelSpeed = 10;
                     window.gymArena.setupMatchLayout();
                     window.gymArena.renderBoard();
                     window.gymArena.updateHUD();
