@@ -218,6 +218,20 @@ class MatchManager:
         else:
             self.current_speech = None
 
+    def check_tcec_adjudication(self) -> Tuple[bool, str, str]:
+        """Adjudica vitória técnica a partir do lance 30 se houver vantagem decisiva de material (>=9 pts vs <=4 pts)."""
+        if self.board.fullmove_number < 30:
+            return False, "*", ""
+        piece_values = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9}
+        white_mat = sum(piece_values.get(p.piece_type, 0) for p in self.board.piece_map().values() if p.color == chess.WHITE)
+        black_mat = sum(piece_values.get(p.piece_type, 0) for p in self.board.piece_map().values() if p.color == chess.BLACK)
+        net_mat = white_mat - black_mat
+        if net_mat >= 9 and black_mat <= 4:
+            return True, "1-0", "Vitória das Brancas por Adjudicação TCEC (Vantagem Decisiva)."
+        elif net_mat <= -9 and white_mat <= 4:
+            return True, "0-1", "Vitória das Pretas por Adjudicação TCEC (Vantagem Decisiva)."
+        return False, "*", ""
+
     def get_state(self) -> Dict[str, Any]:
         """Gera o estado completo sincronizado com a interface GymArena Mobile."""
         with self.lock:
@@ -260,18 +274,12 @@ class MatchManager:
             result_desc = ""
 
             # Adjudicação TCEC de Finais Decididos (Win Adjudication)
-            if not is_over and self.board.fullmove_number >= 30:
-                net_mat = white_mat - black_mat
-                white_decisive = (net_mat >= 9 and black_mat <= 4)
-                black_decisive = (net_mat <= -9 and white_mat <= 4)
-                if white_decisive:
+            if not is_over:
+                tcec_decisive, tcec_res, tcec_desc = self.check_tcec_adjudication()
+                if tcec_decisive:
                     is_over = True
-                    game_result = "1-0"
-                    result_desc = "Vitória das Brancas por Adjudicação TCEC (Vantagem Decisiva)."
-                elif black_decisive:
-                    is_over = True
-                    game_result = "0-1"
-                    result_desc = "Vitória das Pretas por Adjudicação TCEC (Vantagem Decisiva)."
+                    game_result = tcec_res
+                    result_desc = tcec_desc
 
             if self.board.is_checkmate():
                 winner = "Brancas" if self.board.turn == chess.BLACK else "Pretas"
@@ -369,8 +377,9 @@ class MatchManager:
             # Atualizar fala contextual do bot scriptado se aplicável
             self._update_speech_reaction(mover_color, move, was_capture=is_capture)
 
-            # Aprendizado online ao fim do jogo
-            if self.board.is_game_over(claim_draw=True) and ("neural" in (self.white_player_type, self.black_player_type)):
+            # Aprendizado online ao fim do jogo (Mate, Empate formal ou Adjudicação TCEC decisiva)
+            tcec_decisive, _, _ = self.check_tcec_adjudication()
+            if (self.board.is_game_over(claim_draw=True) or tcec_decisive) and ("neural" in (self.white_player_type, self.black_player_type)):
                 neural_is_white = (self.white_player_type == "neural")
                 opp_name = self.black_bot_name if neural_is_white else self.white_bot_name
                 if self.learner:
