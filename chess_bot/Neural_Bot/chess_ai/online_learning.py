@@ -169,8 +169,14 @@ class OnlineLearner:
         self.total_online_games += 1
         self.total_online_positions += len(self.current_trajectory)
 
-        # Salvar pesos atualizados
-        self.model.save_weights(self.weights_path)
+        # Salvar pesos atualizados de forma segura contra concorrência
+        for attempt in range(5):
+            try:
+                self.model.save_weights(self.weights_path)
+                break
+            except Exception:
+                time.sleep(0.1)
+
         if self.onnx_path:
             try:
                 self.model.export_onnx(self.onnx_path)
@@ -191,19 +197,21 @@ class OnlineLearner:
         }
 
         if self.history_path:
-            existing_history = []
-            if self.history_path.is_file():
+            for attempt in range(5):
                 try:
-                    with open(self.history_path, "r", encoding="utf-8") as f:
-                        existing_history = json.load(f)
-                except Exception:
                     existing_history = []
-            existing_history.append(history_entry)
-            try:
-                with open(self.history_path, "w", encoding="utf-8") as f:
-                    json.dump(existing_history[-1000:], f, indent=2)
-            except Exception:
-                pass
+                    if self.history_path.is_file():
+                        try:
+                            with open(self.history_path, "r", encoding="utf-8") as f:
+                                existing_history = json.load(f)
+                        except Exception:
+                            existing_history = []
+                    existing_history.append(history_entry)
+                    with open(self.history_path, "w", encoding="utf-8") as f:
+                        json.dump(existing_history[-1000:], f, indent=2)
+                    break
+                except Exception:
+                    time.sleep(0.1)
 
         # Limpar trajetória
         self.current_trajectory.clear()
