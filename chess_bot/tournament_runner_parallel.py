@@ -437,54 +437,55 @@ async def run_parallel_tournament(workers_count: int = DEFAULT_WORKERS, fresh: b
     print(" [*] Aceleração de Hardware     : RTX 3060 12GB + Xeon 24 Threads")
     print("=" * 75 + "\n")
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            executable_path=CHROME_PATH,
-            headless=True,
-            args=["--no-sandbox", "--disable-gpu-shader-disk-cache", "--disable-dev-shm-usage"]
-        )
-
-        context = await browser.new_context(viewport={"width": 1280, "height": 800})
-        pages = [await context.new_page() for _ in range(workers_count)]
-
-        for w_id, page in enumerate(pages):
-            def make_console_handler(wid):
-                return lambda msg: manager.console_errors.append(f"[W{wid}] {msg.text}") if msg.type == "error" else None
-            def make_page_error_handler(wid):
-                return lambda err: manager.page_errors.append(f"[W{wid}] {err}")
-            page.on("console", make_console_handler(w_id + 1))
-            page.on("pageerror", make_page_error_handler(w_id + 1))
-
-        # Disparar os workers concorrentemente
-        tasks = [
-            asyncio.create_task(
-                worker_task(
-                    worker_id=i + 1,
-                    port=BASE_PORT + i,
-                    page=pages[i],
-                    bot_queue=bot_queue,
-                    manager=manager,
-                    total_bots_count=len(all_bots),
-                )
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                executable_path=CHROME_PATH,
+                headless=True,
+                args=["--no-sandbox", "--disable-gpu-shader-disk-cache", "--disable-dev-shm-usage"]
             )
-            for i in range(workers_count)
-        ]
 
-        await asyncio.gather(*tasks)
-        await browser.close()
+            context = await browser.new_context(viewport={"width": 1280, "height": 800})
+            pages = [await context.new_page() for _ in range(workers_count)]
 
-    print("\n" + "=" * 75)
-    print("      ♛ TORNEIO PARALELO GYMARENA CONCLUÍDO COM 100% DE SUCESSO ♛")
-    print("=" * 75)
-    print(f" [*] Séries Disputadas         : {len(manager.results_by_bot)}")
-    print(f" [*] Relatório Salvo em        : {REPORT_FILE.resolve()}")
-    print("=" * 75 + "\n")
+            for w_id, page in enumerate(pages):
+                def make_console_handler(wid):
+                    return lambda msg: manager.console_errors.append(f"[W{wid}] {msg.text}") if msg.type == "error" else None
+                def make_page_error_handler(wid):
+                    return lambda err: manager.page_errors.append(f"[W{wid}] {err}")
+                page.on("console", make_console_handler(w_id + 1))
+                page.on("pageerror", make_page_error_handler(w_id + 1))
 
-    for p in server_procs:
-        try:
-            p.terminate()
-        except Exception:
-            pass
+            # Disparar os workers concorrentemente
+            tasks = [
+                asyncio.create_task(
+                    worker_task(
+                        worker_id=i + 1,
+                        port=BASE_PORT + i,
+                        page=pages[i],
+                        bot_queue=bot_queue,
+                        manager=manager,
+                        total_bots_count=len(all_bots),
+                    )
+                )
+                for i in range(workers_count)
+            ]
+
+            await asyncio.gather(*tasks)
+            await browser.close()
+
+        print("\n" + "=" * 75)
+        print("      ♛ TORNEIO PARALELO GYMARENA CONCLUÍDO COM 100% DE SUCESSO ♛")
+        print("=" * 75)
+        print(f" [*] Séries Disputadas         : {len(manager.results_by_bot)}")
+        print(f" [*] Relatório Salvo em        : {REPORT_FILE.resolve()}")
+        print("=" * 75 + "\n")
+    finally:
+        for p in server_procs:
+            try:
+                p.terminate()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
