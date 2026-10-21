@@ -18,8 +18,26 @@ import torch.nn.functional as F
 from .encoder import ACTION_SIZE, NUM_CHANNELS
 
 
+class SqueezeExcitationBlock(nn.Module):
+    """Módulo Squeeze-and-Excitation (SE-Attention) para recalibração de canais."""
+
+    def __init__(self, channels: int, reduction: int = 4):
+        super().__init__()
+        self.fc1 = nn.Linear(channels, channels // reduction, bias=False)
+        self.fc2 = nn.Linear(channels // reduction, channels, bias=False)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        b, c, _, _ = x.size()
+        # Squeeze: Global Average Pooling (B, C)
+        w = F.adaptive_avg_pool2d(x, 1).view(b, c)
+        # Excitation: MLP com sigmoid
+        w = F.relu(self.fc1(w))
+        w = torch.sigmoid(self.fc2(w)).view(b, c, 1, 1)
+        return x * w
+
+
 class ResidualBlock(nn.Module):
-    """Bloco residual padrão com duas convoluções 3x3 e conexão de atalho (skip connection)."""
+    """Bloco residual padrão com convoluções 3x3 e BatchNorm."""
 
     def __init__(self, channels: int):
         super().__init__()
@@ -36,6 +54,26 @@ class ResidualBlock(nn.Module):
         return out
 
 
+class SEResidualBlock(nn.Module):
+    """Bloco residual aprimorado com Squeeze-and-Excitation (SE-ResNet)."""
+
+    def __init__(self, channels: int, reduction: int = 4):
+        super().__init__()
+        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(channels)
+        self.se = SqueezeExcitationBlock(channels, reduction=reduction)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        residual = x
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out = self.se(out)
+        out = F.relu(out + residual)
+        return out
+
+
 class ChessPolicyValueNet(nn.Module):
     """Rede Neural de Dupla Cabeça para Política e Avaliação de Posições."""
 
@@ -45,19 +83,22 @@ class ChessPolicyValueNet(nn.Module):
         num_channels: int = 128,
         num_blocks: int = 4,
         action_size: int = ACTION_SIZE,
+        use_se: bool = False,
     ):
         super().__init__()
         self.in_channels = in_channels
         self.num_channels = num_channels
         self.num_blocks = num_blocks
         self.action_size = action_size
+        self.use_se = use_se
 
         # Camada Convolucional de Entrada
         self.conv_in = nn.Conv2d(in_channels, num_channels, kernel_size=3, padding=1, bias=False)
         self.bn_in = nn.BatchNorm2d(num_channels)
 
-        # Backbone Residual
-        self.res_blocks = nn.ModuleList([ResidualBlock(num_channels) for _ in range(num_blocks)])
+        # Backbone Residual (Padrão ou SE-ResNet)
+        block_cls = SEResidualBlock if use_se else ResidualBlock
+        self.res_blocks = nn.ModuleList([block_cls(num_channels) for _ in range(num_blocks)])
 
         # Cabeça de Política (Policy Head)
         self.policy_conv = nn.Conv2d(num_channels, 32, kernel_size=1, bias=False)
@@ -108,6 +149,7 @@ class ChessPolicyValueNet(nn.Module):
             "num_blocks": self.num_blocks,
             "in_channels": self.in_channels,
             "action_size": self.action_size,
+            "use_se": self.use_se,
         }
         for attempt in range(5):
             try:
@@ -138,6 +180,7 @@ class ChessPolicyValueNet(nn.Module):
             num_channels=checkpoint.get("num_channels", 128),
             num_blocks=checkpoint.get("num_blocks", 4),
             action_size=checkpoint.get("action_size", ACTION_SIZE),
+            use_se=checkpoint.get("use_se", False),
         )
         model.load_state_dict(checkpoint["state_dict"])
         model.to(device)

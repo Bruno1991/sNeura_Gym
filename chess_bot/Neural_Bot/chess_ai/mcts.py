@@ -92,9 +92,18 @@ class MCTSNode:
         Nota: -Q(filho) porque o valor do filho é da perspectiva do oponente.
         """
         exploration = c_puct * self.prior * (math.sqrt(parent_visits) / (1.0 + self.visit_count))
-        # Se o filho ainda não foi visitado, o valor estimado de Q é neutro (0.0)
         q = -self.q_value if self.visit_count > 0 else 0.0
         return q + exploration
+
+    def apply_virtual_loss(self, v_loss: float = 3.0):
+        """Aplica Virtual Loss para desencorajar outras travessias do batch de escolher o mesmo nó."""
+        self.visit_count += int(v_loss)
+        self.total_value -= v_loss
+
+    def revert_virtual_loss(self, v_loss: float = 3.0):
+        """Reverte o Virtual Loss aplicado previamente antes da backpropagation do valor real."""
+        self.visit_count -= int(v_loss)
+        self.total_value += v_loss
 
     def expand(self, move_priors: Dict[chess.Move, float], transposition_graph: Optional[Dict[int, MCTSNode]] = None):
         """Expande o nó criando filhos para todos os lances legais com seus priors e Zobrist Transposition Graph."""
@@ -203,20 +212,82 @@ class NeuralMCTS:
 
         return move_priors, eval_val
 
+    def evaluate_batch(self, boards: List[chess.Board]) -> List[Tuple[Dict[chess.Move, float], float]]:
+        """Avalia múltiplos tabuleiros em um único batch tensorizado na GPU."""
+        results: List[Optional[Tuple[Dict[chess.Move, float], float]]] = [None] * len(boards)
+        uncached_indices: List[int] = []
+        uncached_tensors: List[torch.Tensor] = []
+
+        for i, b in enumerate(boards):
+            ck = b._transposition_key()
+            if ck in self.eval_cache:
+                results[i] = self.eval_cache[ck]
+            elif not list(b.legal_moves):
+                val = -1.0 if b.is_checkmate() else 0.0
+                res = ({}, val)
+                self.eval_cache[ck] = res
+                results[i] = res
+            else:
+                uncached_indices.append(i)
+                uncached_tensors.append(encode_board(b))
+
+        if not uncached_tensors:
+            return [r for r in results if r is not None]
+
+        batch_tensor = torch.stack(uncached_tensors).to(self.device)
+        self.model.eval()
+        with torch.inference_mode():
+            if self.device.type == "cuda":
+                with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+                    batch_policy, batch_value = self.model(batch_tensor)
+            else:
+                batch_policy, batch_value = self.model(batch_tensor)
+
+            values = batch_value.squeeze(1).cpu().float().numpy()
+
+        for j, orig_idx in enumerate(uncached_indices):
+            b = boards[orig_idx]
+            legal_moves = list(b.legal_moves)
+            indices = [encode_move(m, b.turn) for m in legal_moves]
+            idx_t = torch.tensor(indices, device=batch_policy.device, dtype=torch.long)
+            logits = batch_policy[j][idx_t]
+            probs = F.softmax(logits, dim=-1).cpu().float().numpy()
+            eval_val = float(values[j])
+
+            move_priors: Dict[chess.Move, float] = {}
+            for m, p in zip(legal_moves, probs):
+                move_priors[m] = float(p)
+            prior_sum = sum(move_priors.values())
+            if prior_sum > 0:
+                for m in move_priors:
+                    move_priors[m] /= prior_sum
+            else:
+                u = 1.0 / len(legal_moves)
+                for m in move_priors:
+                    move_priors[m] = u
+
+            ck = b._transposition_key()
+            self.eval_cache[ck] = (move_priors, eval_val)
+            results[orig_idx] = (move_priors, eval_val)
+
+        return [r for r in results if r is not None]
+
     def search(
         self,
         board: chess.Board,
         num_simulations: int = 50,
         temperature: float = 0.0,
         add_noise: bool = False,
+        batch_size: int = 8,
     ) -> Tuple[Optional[chess.Move], Dict[str, Any]]:
-        """Executa a busca MCTS a partir do estado atual.
+        """Executa a busca MCTS a partir do estado atual com aceleração tensorizada em batch.
         
         Args:
             board: Tabuleiro atual de xadrez.
             num_simulations: Número de iterações de simulação na árvore.
             temperature: 0.0 para lance com mais visitas (argmax); > 0 para amostragem.
             add_noise: Se True, injeta ruído de Dirichlet na raiz (recomendado no treino).
+            batch_size: Tamanho do lote tensorizado para inferência simultânea na GPU.
             
         Returns:
             Tuple[melhor_lance, estatísticas_da_busca]
@@ -278,13 +349,12 @@ class NeuralMCTS:
             for i, m in enumerate(moves):
                 root_priors[m] = (1.0 - self.dirichlet_eps) * root_priors[m] + self.dirichlet_eps * noise[i]
 
-        root.expand(root_priors)
+        transposition_graph: Dict[int, MCTSNode] = {}
+        root.expand(root_priors, transposition_graph=transposition_graph)
 
         max_depth_reached = 0
 
         # Budget Adaptativo Dinâmico de Simulações MCTS:
-        # Posições de alta tensão (xeque, peças de alto valor sob ataque ou jogo complexo)
-        # ganham extensão de budget; posições com dominância clara encerram mais rápido.
         top_prior_val = max(root_priors.values()) if root_priors else 0.0
         is_in_check = board.is_check()
         has_heavy_attack = any(
@@ -298,67 +368,124 @@ class NeuralMCTS:
         elif top_prior_val >= 0.80 and num_simulations > 35:
             effective_sims = 35
 
-        # Loop principal de simulações MCTS
-        for _ in range(effective_sims):
-            node = root
-            search_path = [node]
-            depth = 0
+        # Loop principal de simulações MCTS (Batched GPU com Virtual Loss ou Sequencial)
+        use_batch = (self.device.type == "cuda" and batch_size > 1 and len(legal_moves) > 1)
+        curr_sim = 0
 
-            # 1. SELEÇÃO: Desce pela árvore até encontrar um nó folha
-            while node.is_expanded and not node.is_terminal:
-                # Escolhe o filho que maximiza a fórmula PUCT
-                best_score = -float("inf")
-                best_child = None
+        while curr_sim < effective_sims:
+            if not use_batch:
+                node = root
+                search_path = [node]
+                depth = 0
 
-                for child in node.children.values():
-                    score = child.puct_score(self.c_puct, node.visit_count)
-                    if score > best_score:
-                        best_score = score
-                        best_child = child
+                while node.is_expanded and not node.is_terminal:
+                    best_score = -float("inf")
+                    best_child = None
+                    for child in node.children.values():
+                        score = child.puct_score(self.c_puct, node.visit_count)
+                        if score > best_score:
+                            best_score = score
+                            best_child = child
+                    if best_child is None:
+                        break
+                    node = best_child
+                    search_path.append(node)
+                    depth += 1
 
-                if best_child is None:
-                    break
+                if depth > max_depth_reached:
+                    max_depth_reached = depth
 
-                node = best_child
-                search_path.append(node)
-                depth += 1
+                if node.is_terminal:
+                    value = node.terminal_value
+                else:
+                    priors, value = self.evaluate_board(node.board)
+                    if not node.board.is_game_over(claim_draw=True):
+                        node.expand(priors, transposition_graph=transposition_graph)
+                        if any(node.board.is_capture(m) for m in node.board.legal_moves):
+                            from .tactics import find_punitive_captures
+                            punitive = find_punitive_captures(node.board)
+                            if punitive:
+                                best_gain = max(p[1] for p in punitive)
+                                if best_gain >= 180:
+                                    value = min(1.0, value + (best_gain / 1000.0) * 0.35)
 
-            if depth > max_depth_reached:
-                max_depth_reached = depth
+                for n in reversed(search_path):
+                    n.visit_count += 1
+                    n.total_value += value
+                    value = -value
 
-            # 2. EXPANSÃO E AVALIAÇÃO DO NÓ FOLHA (COM QUIESCENCE SEE)
-            if node.is_terminal:
-                value = node.terminal_value
+                curr_sim += 1
             else:
-                priors, value = self.evaluate_board(node.board)
-                if not node.board.is_game_over(claim_draw=True):
-                    node.expand(priors)
-                    # Quiescence Rollout com SEE: refina a avaliação neural contra blunders de troca imediata
-                    if any(node.board.is_capture(m) for m in node.board.legal_moves):
-                        from .tactics import find_punitive_captures
-                        punitive = find_punitive_captures(node.board)
-                        if punitive:
-                            best_gain = max(p[1] for p in punitive)
-                            if best_gain >= 180:
-                                value = min(1.0, value + (best_gain / 1000.0) * 0.35)
+                # Batch Traversal com Virtual Loss
+                traversals = []
+                for _ in range(min(batch_size, effective_sims - curr_sim)):
+                    node = root
+                    search_path = [node]
+                    depth = 0
 
-            # 3. BACKPROPAGATION (MINIMAX RETROSPECTIVO)
-            # O valor 'value' é da perspectiva do jogador com a vez no nó folha.
-            # Cada nível acima inverte o sinal do valor.
-            for n in reversed(search_path):
-                n.visit_count += 1
-                n.total_value += value
-                value = -value
+                    while node.is_expanded and not node.is_terminal:
+                        best_score = -float("inf")
+                        best_child = None
+                        for child in node.children.values():
+                            score = child.puct_score(self.c_puct, node.visit_count)
+                            if score > best_score:
+                                best_score = score
+                                best_child = child
+                        if best_child is None:
+                            break
+                        node = best_child
+                        search_path.append(node)
+                        depth += 1
+
+                    if depth > max_depth_reached:
+                        max_depth_reached = depth
+
+                    for n in search_path:
+                        n.apply_virtual_loss(3.0)
+
+                    traversals.append((node, search_path))
+
+                to_eval_nodes = [node.board for node, _ in traversals if not node.is_terminal and not node.is_expanded]
+                eval_results = self.evaluate_batch(to_eval_nodes) if to_eval_nodes else []
+                eval_idx = 0
+
+                for node, search_path in traversals:
+                    for n in search_path:
+                        n.revert_virtual_loss(3.0)
+
+                    if node.is_terminal:
+                        value = node.terminal_value
+                    elif not node.is_expanded and eval_idx < len(eval_results):
+                        priors, value = eval_results[eval_idx]
+                        eval_idx += 1
+                        if not node.board.is_game_over(claim_draw=True):
+                            node.expand(priors, transposition_graph=transposition_graph)
+                            if any(node.board.is_capture(m) for m in node.board.legal_moves):
+                                from .tactics import find_punitive_captures
+                                punitive = find_punitive_captures(node.board)
+                                if punitive:
+                                    best_gain = max(p[1] for p in punitive)
+                                    if best_gain >= 180:
+                                        value = min(1.0, value + (best_gain / 1000.0) * 0.35)
+                    else:
+                        value = node.q_value
+
+                    for n in reversed(search_path):
+                        n.visit_count += 1
+                        n.total_value += value
+                        value = -value
+
+                curr_sim += len(traversals)
 
             # Early Stopping Matemático & Dominância AlphaZero
-            if _ >= 20 and (_ % 5 == 0):
+            if curr_sim >= 30 and (curr_sim % 10 == 0):
                 child_visits = sorted([c.visit_count for c in root.children.values()], reverse=True)
                 if len(child_visits) >= 2:
                     top_v, sec_v = child_visits[0], child_visits[1]
-                    remaining = effective_sims - _
+                    remaining = effective_sims - curr_sim
                     if (top_v - sec_v) > remaining:
                         break
-                    if _ >= 30 and top_v >= _ * 0.80:
+                    if curr_sim >= 40 and top_v >= curr_sim * 0.85:
                         break
                 elif len(child_visits) == 1:
                     break

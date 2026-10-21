@@ -15,6 +15,8 @@ import torch.nn.functional as F
 from .encoder import decode_move, encode_board, encode_move, get_legal_action_mask
 from .model import ChessPolicyValueNet
 from .mcts import NeuralMCTS
+from .tablebase import SyzygyTablebaseManager, find_tablebase_or_exact_endgame_move
+from .tactical_pvs import TacticalPVSEngine
 from .tactics import (
     find_punitive_captures,
     find_endgame_finishing_move,
@@ -34,9 +36,13 @@ class NeuralChessBot:
         use_mcts: bool = False,
         mcts_sims: int = 50,
         mcts_c_puct: float = 2.0,
+        mcts_batch_size: int = 8,
         adaptive_mcts: bool = True,
         adaptive_sims: int = 35,
         use_book: bool = True,
+        syzygy_path: Optional[str | Path] = None,
+        use_pvs_blunder_guard: bool = True,
+        pvs_depth: int = 8,
     ):
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -71,9 +77,15 @@ class NeuralChessBot:
         self.use_mcts = use_mcts
         self.mcts_sims = mcts_sims
         self.mcts_c_puct = mcts_c_puct
+        self.mcts_batch_size = mcts_batch_size
         self.adaptive_mcts = adaptive_mcts
         self.adaptive_sims = adaptive_sims
+        self.use_pvs_blunder_guard = use_pvs_blunder_guard
+        self.pvs_depth = pvs_depth
+        self.syzygy_manager = SyzygyTablebaseManager(syzygy_path)
+        self.tactical_pvs = TacticalPVSEngine()
         self.mcts: Optional[NeuralMCTS] = None
+
 
         if self.model is None:
             self._load_network()
@@ -182,6 +194,12 @@ class NeuralChessBot:
                 }
             board.pop()
 
+        # 1.4. Bases de Finais Syzygy & Solver Exato Integrado (<= 5 peças com precisão matemática)
+        tablebase_res = find_tablebase_or_exact_endgame_move(board, self.syzygy_manager, max_depth=6)
+        if tablebase_res is not None:
+            tb_move, tb_info = tablebase_res
+            return tb_move, tb_info
+
         # 1.5. Módulo Especialista de Finalização de Finais (Endgame Finisher & Anti-Stalemate)
         # Se estiver em final ganho (ex: Dama/Torre vs Rei, ou poucas peças), arremata com técnica forçada
         endgame_res = find_endgame_finishing_move(board, max_depth=4)
@@ -209,7 +227,12 @@ class NeuralChessBot:
             if self.mcts is None:
                 self.mcts = NeuralMCTS(self.model, device=self.device, c_puct=self.mcts_c_puct)
             sims = num_simulations or self.mcts_sims
-            move, stats = self.mcts.search(board, num_simulations=sims, temperature=temperature)
+            move, stats = self.mcts.search(
+                board,
+                num_simulations=sims,
+                temperature=temperature,
+                batch_size=self.mcts_batch_size,
+            )
             if move is not None:
                 # Escudo Anti-Repetição estrito no MCTS:
                 # Se o bot estiver à frente ou empatado e o lance causar repetição tripla, refutar!
@@ -218,6 +241,15 @@ class NeuralChessBot:
                 board.pop()
 
                 if not causes_rep:
+                    if self.use_pvs_blunder_guard:
+                        verified_move, pvs_info = self.tactical_pvs.verify_and_refine_candidate(
+                            board, move, depth=self.pvs_depth
+                        )
+                        if pvs_info.get("source") == "pvs_blunder_refutation":
+                            stats["pvs_refuted_candidate"] = board.san(move)
+                            move = verified_move
+                            stats["source"] = "pvs_blunder_refutation"
+
                     stats["san"] = board.san(move)
                     stats["value"] = stats.get("root_value", 0.0)
                     stats["probability"] = stats.get("best_move_visits", 1) / max(1, sims)
@@ -291,12 +323,27 @@ class NeuralChessBot:
             )
             if is_sharp:
                 sims = self.adaptive_sims
-                mcts_move, stats = self.mcts.search(board, num_simulations=sims, temperature=0.0)
+                mcts_move, stats = self.mcts.search(
+                    board,
+                    num_simulations=sims,
+                    temperature=0.0,
+                    batch_size=self.mcts_batch_size,
+                )
                 if mcts_move is not None:
+                    if self.use_pvs_blunder_guard:
+                        verified_move, pvs_info = self.tactical_pvs.verify_and_refine_candidate(
+                            board, mcts_move, depth=self.pvs_depth
+                        )
+                        if pvs_info.get("source") == "pvs_blunder_refutation":
+                            stats["pvs_refuted_candidate"] = board.san(mcts_move)
+                            mcts_move = verified_move
+                            stats["source"] = "pvs_blunder_refutation"
+
                     stats["san"] = board.san(mcts_move)
                     stats["value"] = stats.get("root_value", eval_val)
                     stats["probability"] = stats.get("best_move_visits", 1) / max(1, sims)
-                    stats["source"] = "adaptive_neural_mcts"
+                    if stats.get("source") != "pvs_blunder_refutation":
+                        stats["source"] = "adaptive_neural_mcts"
                     return mcts_move, stats
 
         if temperature > 0.0 and len(move_probs) > 1:
@@ -314,6 +361,21 @@ class NeuralChessBot:
                 "temperature": temperature,
                 "san": board.san(chosen_move),
             }
+
+        # Blunder Guard PVS definitivo na inferência direta
+        if self.use_pvs_blunder_guard and best_move is not None:
+            verified_move, pvs_info = self.tactical_pvs.verify_and_refine_candidate(
+                board, best_move, depth=self.pvs_depth
+            )
+            if pvs_info.get("source") == "pvs_blunder_refutation":
+                best_move = verified_move
+                return best_move, {
+                    "source": "pvs_blunder_refutation",
+                    "probability": 1.0,
+                    "value": pvs_info.get("tactical_eval", 0) / 100.0,
+                    "san": board.san(best_move),
+                    "pvs_info": pvs_info,
+                }
 
         return best_move, {
             "source": "neural_policy_argmax",
