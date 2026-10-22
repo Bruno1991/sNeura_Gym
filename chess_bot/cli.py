@@ -1,18 +1,22 @@
 """Canivete Suíço Universal do Xadrez (s_Neura_Gym - chess_bot).
 
-Interface unificada e centralizada de controle para:
-- Ligar / reiniciar a GymArena Mobile Web (FastAPI + WebSocket)
-- Executar baterias paralelas de partidas (Neural_Bot vs Bots do Chess.com com 64 workers e AMP FP16)
-- Acompanhar status, telemetria e checkpoints em tempo real
-- Consultar e inspecionar o catálogo dos 217 bots oficiais do Chess.com
-- Jogar duelos interativos no terminal com livros Polyglot reais
-- Avaliação neural de FEN com MCTS profundo
-- Executar testes automatizados (pytest)
+Interface unificada e centralizada de controle com terminal Rich para:
+- [1] Iniciar servidor local da GymArena Mobile Web (FastAPI + WebSocket na porta 8000)
+- [2] Executar Torneio MD3 Oficial contra os 217 bots do Chess.com (Modo 30x Acelerado)
+- [3] Executar Bateria de 1.000 partidas de Self-Play (Neura Bot vs Neura Bot com PGN)
+- [4] Treinamento e Ajuste Fino Neural da SE-ResNet na GPU RTX 3060 com AMP FP16
+- [5] Executar Pipeline Master Completo Automatizado com sincronização Git
+- [6] Jogar Duelo Interativo no terminal contra qualquer bot oficial com livro Polyglot
+- [7] Consultar e filtrar o catálogo completo dos 217 bots oficiais do Chess.com
+- [8] Acompanhar status, telemetria, checkpoints e relatórios em tempo real
+- [9] Avaliação neural profunda de posição FEN com SE-ResNet e MCTS
+- [10] Executar suíte de testes automatizados com pytest
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import subprocess
@@ -25,23 +29,69 @@ from typing import Any, Dict, List, Optional
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
 
 CURRENT_DIR = Path(__file__).resolve().parent
 NEURAL_DIR = CURRENT_DIR / "Neural_Bot"
 SCRIPTED_DIR = CURRENT_DIR / "Scripted_Bot"
-CHECKPOINTS_DIR = NEURAL_DIR / "checkpoints"
 REPORTS_DIR = CURRENT_DIR / "relatorios_avancos"
-CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
-REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+CHECKPOINTS_DIR = NEURAL_DIR / "checkpoints"
+BOOKS_DIR = CURRENT_DIR / "books"
 
+REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
+
+sys.path.insert(0, str(CURRENT_DIR))
 sys.path.insert(0, str(NEURAL_DIR))
 sys.path.insert(0, str(SCRIPTED_DIR))
 
 WEIGHTS_PATH = CHECKPOINTS_DIR / "chess_policy_weights.pt"
 ONNX_PATH = CHECKPOINTS_DIR / "chess_policy_weights.onnx"
 BOTS_DATA_FILE = CURRENT_DIR / "bots_data.json"
+CHECKPOINT_TOURNAMENT = REPORTS_DIR / "checkpoint_melhor_de_3.json"
+CHECKPOINT_SELFPLAY = REPORTS_DIR / "checkpoint_bateria_1000_selfplay.json"
+
+from rich import box
+from rich.align import Align
+from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Confirm, IntPrompt, Prompt
+from rich.table import Table
+from rich.text import Text
+
+from runners.catalog import ChessBotsManager, play_interactive_game, print_bot_detail
+from runners.pipeline import run_full_pipeline
+from runners.selfplay import run_selfplay
+from runners.tournament import run_tournament
+from runners.train import train_pipeline
+
+console = Console()
+
+
+# ==============================================================================
+# BANNERS & APRESENTAÇÃO
+# ==============================================================================
+def print_banner():
+    """Exibe o cabeçalho Rich estilizado do Canivete Suíço."""
+    title_text = Text()
+    title_text.append("♚ ♛ ♜ ♝ ♞ ♟   ", style="bold gold1")
+    title_text.append("S_NEURA_GYM: CANIVETE SUÍÇO DO CHESS_BOT", style="bold bright_white")
+    title_text.append("   ♟ ♞ ♝ ♜ ♛ ♚\n", style="bold gold1")
+    title_text.append(
+        "Motor Neural SE-ResNet (128c x 4b) • MCTS Híbrido • PVS Blunder Guard • Catálogo 217 Bots Oficiais\n",
+        style="italic cyan",
+    )
+    title_text.append("Aceleração NVIDIA GeForce RTX 3060 (PyTorch AMP FP16) • GymArena Mobile Web", style="dim white")
+
+    p = Panel(
+        Align.center(title_text),
+        box=box.DOUBLE,
+        border_style="bright_blue",
+        padding=(0, 2),
+    )
+    console.print(p)
 
 
 # ==============================================================================
@@ -49,14 +99,17 @@ BOTS_DATA_FILE = CURRENT_DIR / "bots_data.json"
 # ==============================================================================
 def start_arena(host: str = "0.0.0.0", port: int = 8000, reload: bool = False):
     """Inicia o servidor web da GymArena Mobile."""
-    print("\n" + "=" * 70)
-    print("      ♛ GYMARENA MOBILE: INICIANDO SERVIDOR WEB LOCAL ♛")
-    print("=" * 70)
-    print(f" [*] Endereço Local    : http://localhost:{port}")
-    print(f" [*] Interface de Rede : http://{host}:{port}")
-    print(" [*] Peças Vetoriais   : cburnett SVG (Oficiais do Lichess)")
-    print(" [*] Bots Integrados   : 217 Bots Oficiais + Neural_Bot 3200")
-    print(" [*] Pressione CTRL+C para encerrar o servidor.\n")
+    console.print("\n[bold green]>>> INICIANDO SERVIDOR WEB LOCAL GYMARENA MOBILE <<<[/bold green]")
+    t = Table(box=box.ROUNDED, border_style="cyan")
+    t.add_column("Parâmetro", style="bold white")
+    t.add_column("Configuração", style="yellow")
+    t.add_row("Endereço Local", f"http://localhost:{port}")
+    t.add_row("Endereço da Rede", f"http://{host}:{port}")
+    t.add_row("Peças Vetoriais", "cburnett SVG (Oficiais do Lichess)")
+    t.add_row("Bots Integrados", "217 Bots Oficiais Chess.com + Neura Bot")
+    t.add_row("Encerrar Servidor", "Pressione CTRL+C no terminal")
+    console.print(t)
+
     import uvicorn
     if reload:
         uvicorn.run("arena.server:app", host=host, port=port, reload=True, reload_dirs=[str(CURRENT_DIR / "arena")], app_dir=str(CURRENT_DIR))
@@ -65,215 +118,198 @@ def start_arena(host: str = "0.0.0.0", port: int = 8000, reload: bool = False):
 
 
 # ==============================================================================
-# 2. BATERIA DE PARTIDAS COM WORKERS PARALELOS
+# 2. STATUS & DASHBOARD
 # ==============================================================================
-def run_battery(
-    total_games: int = 10000,
-    workers: int = 64,
-    cycle_games: int = 250,
-    max_plies: int = 80,
-    engine_workers: int = 8,
-):
-    """Executa simulação paralela acelerada por GPU de Neural vs Bots."""
-    import torch
-    from chess_ai.batched_rl_trainer import BatchedRLTrainer
-    from chess_ai.model import ChessPolicyValueNet
-    from chess_ai.report_generator import generate_tournament_markdown_report
-    from chess_bot import ChessBot
+def show_dashboard():
+    """Exibe painel consolidado com status do modelo, torneio, selfplay e relatórios."""
+    console.print("\n[bold gold1]═══════════════════════════════════════════════════════════════════════[/bold gold1]")
+    console.print("[bold bright_white]                📊 DASHBOARD E TELEMETRIA DO SISTEMA 📊[/bold bright_white]")
+    console.print("[bold gold1]═══════════════════════════════════════════════════════════════════════[/bold gold1]\n")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("\n" + "=" * 75)
-    print(f"      ♛ BATERIA DE {total_games:,} PARTIDAS: NEURAL_BOT VS CHESS.COM BOTS ♛")
-    print("=" * 75)
-    print(f" [*] Hardware GPU/CPU    : {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'}")
-    print(f" [*] Workers Simultâneos : {workers} workers")
-    print(f" [*] Processos Oponentes : {engine_workers} engine workers")
-    print(f" [*] Meta de Partidas    : {total_games:,} partidas")
-    print(f" [*] Limite de Plies     : {max_plies} plies ({max_plies//2} lances)")
-    print(f" [*] Aceleração Tensor   : PyTorch AMP FP16 ativa")
-    print("=" * 75)
+    # 1. Status do Modelo Neural
+    model_table = Table(title="🧠 Modelo Neural & Pesos", box=box.ROUNDED, border_style="magenta")
+    model_table.add_column("Arquivo", style="bold white")
+    model_table.add_column("Status", style="cyan")
+    model_table.add_column("Tamanho", style="yellow")
+    model_table.add_column("Última Modificação", style="green")
 
     if WEIGHTS_PATH.is_file():
-        print(f"[*] Carregando pesos neurais: {WEIGHTS_PATH.name}")
-        model = ChessPolicyValueNet.load_weights(WEIGHTS_PATH, device=str(device))
+        stat = WEIGHTS_PATH.stat()
+        mod_time = datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        model_table.add_row("chess_policy_weights.pt", "✓ Pronto / Atualizado", f"{stat.st_size/(1024*1024):.2f} MB", mod_time)
     else:
-        print("[*] Inicializando arquitetura ResNet (128 canais x 4 blocos)")
-        model = ChessPolicyValueNet(in_channels=18, num_channels=128, num_blocks=4).to(device)
+        model_table.add_row("chess_policy_weights.pt", "✗ Não encontrado", "-", "-")
 
-    # Carregar bot pool
-    bot_pool = []
-    if BOTS_DATA_FILE.is_file():
+    if ONNX_PATH.is_file():
+        stat = ONNX_PATH.stat()
+        mod_time = datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        model_table.add_row("chess_policy_weights.onnx", "✓ Exportado", f"{stat.st_size/(1024*1024):.2f} MB", mod_time)
+    else:
+        model_table.add_row("chess_policy_weights.onnx", "✗ Não exportado", "-", "-")
+
+    dataset_p = CHECKPOINTS_DIR / "dataset_selfplay_1000_combined.pt"
+    if dataset_p.is_file():
+        stat = dataset_p.stat()
+        mod_time = datetime.datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        model_table.add_row("dataset_selfplay_1000_combined.pt", "✓ Cache de Tensores", f"{stat.st_size/(1024*1024):.2f} MB", mod_time)
+
+    console.print(model_table)
+
+    # 2. Status do Torneio MD3 (217 Bots)
+    tourn_table = Table(title="🏆 Torneio MD3 Oficial (GymArena vs 217 Bots)", box=box.ROUNDED, border_style="blue")
+    tourn_table.add_column("Métrica", style="bold white")
+    tourn_table.add_column("Valor", style="bright_yellow")
+    tourn_table.add_column("Detalhes", style="cyan")
+
+    if CHECKPOINT_TOURNAMENT.is_file():
         try:
-            with open(BOTS_DATA_FILE, "r", encoding="utf-8") as f:
+            with open(CHECKPOINT_TOURNAMENT, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            for g in data.get("botGroups", []):
-                for b in g.get("botPersonalities", []):
-                    bot_pool.append(ChessBot(rate=int(b.get("rating", 1500)), bot_name=b.get("name")))
-            print(f"[*] Pool completo de oponentes: {len(bot_pool)} bots oficiais carregados")
+            res = data.get("results", [])
+            total_done = len(res)
+            w_series = sum(1 for r in res if r.get("winner") == "Neural_Bot")
+            l_series = sum(1 for r in res if r.get("winner") not in ("Neural_Bot", "Empate"))
+            d_series = sum(1 for r in res if r.get("winner") == "Empate")
+
+            w_games = sum(r.get("neural_wins", 0) for r in res)
+            l_games = sum(r.get("opp_wins", 0) for r in res)
+            d_games = sum(r.get("draws", 0) for r in res)
+            tot_games = w_games + l_games + d_games
+
+            tourn_table.add_row("Séries Disputadas", f"{total_done} / 217", f"{(total_done/217)*100:.1f}% concluído")
+            tourn_table.add_row("Vitórias em Séries MD3", f"{w_series} vitórias", f"Taxa de Vitória: {(w_series/max(1,total_done))*100:.1f}%")
+            tourn_table.add_row("Derrotas em Séries MD3", f"{l_series} derrotas", f"Taxa de Derrota: {(l_series/max(1,total_done))*100:.1f}%")
+            tourn_table.add_row("Séries Empatadas", f"{d_series} empates", f"Taxa de Empate: {(d_series/max(1,total_done))*100:.1f}%")
+            tourn_table.add_row("Total de Partidas Jogadas", f"{tot_games} partidas", f"{w_games}V - {d_games}E - {l_games}D")
         except Exception as e:
-            print(f"[!] Erro ao ler bots_data.json: {e}")
+            tourn_table.add_row("Erro de Leitura", str(e), "-")
+    else:
+        tourn_table.add_row("Status", "Nenhum torneio registrado", "Execute a opção 2 para iniciar")
 
-    if not bot_pool:
-        sample_ratings = [250, 400, 700, 1000, 1300, 1500, 1800, 2000, 2500, 2820, 3200]
-        bot_pool = [ChessBot(rate=r) for r in sample_ratings]
+    console.print(tourn_table)
 
-    trainer = BatchedRLTrainer(
-        model=model,
-        num_workers=workers,
-        device=str(device),
-        use_amp=True,
-        bot_pool=bot_pool,
-        max_plies=max_plies,
-        engine_pool_workers=engine_workers,
-    )
+    # 3. Status da Bateria Self-Play
+    sp_table = Table(title="♟️ Bateria de Self-Play (Neura Bot vs Neura Bot)", box=box.ROUNDED, border_style="green")
+    sp_table.add_column("Métrica", style="bold white")
+    sp_table.add_column("Valor", style="bright_yellow")
+    sp_table.add_column("Detalhes", style="cyan")
 
-    history_path = CHECKPOINTS_DIR / f"bateria_{total_games}_history.json"
-    report_path = REPORTS_DIR / f"relatorio_bateria_{total_games}_partidas_{workers}_workers.md"
-
-    start_time = time.time()
-    try:
-        trainer.run_batched_training(
-            total_games=total_games,
-            games_per_cycle=cycle_games,
-            epochs_per_cycle=2,
-            batch_size=256,
-            save_weights_path=WEIGHTS_PATH,
-            save_onnx_path=ONNX_PATH,
-            history_path=history_path,
-        )
-    except KeyboardInterrupt:
-        print("\n[!] Bateria interrompida pelo operador. Salvando checkpoint...")
-
-    total_elapsed = time.time() - start_time
-    total_played = trainer.env.total_completed_games
-
-    # Salvar pesos e exportar ONNX
-    try:
-        model.save_weights(WEIGHTS_PATH)
-        model.export_onnx(ONNX_PATH)
-        print(f"[+] Pesos e modelo ONNX atualizados com sucesso em checkpoints/")
-    except Exception as e:
-        print(f"[!] Erro ao salvar pesos: {e}")
-
-    # Gerar relatório Markdown
-    try:
-        if history_path.is_file():
-            with open(history_path, "r", encoding="utf-8") as f:
-                history_data = json.load(f)
-            generate_tournament_markdown_report(history_data, report_path)
-            print(f"[+] Relatório analítico gerado com sucesso em: {report_path}")
-    except Exception as e:
-        print(f"[!] Erro ao gerar relatório markdown: {e}")
-
-    win_rate = (trainer.env.neural_wins / max(1, total_played)) * 100
-    print("=" * 75)
-    print(f" [✔] BATERIA CONCLUÍDA: {total_played:,} partidas jogadas em {total_elapsed/60:.2f} min")
-    print(f" [✔] Vitórias: {trainer.env.neural_wins} | Empates: {trainer.env.draws} | Derrotas: {trainer.env.engine_wins}")
-    print(f" [✔] Taxa de Vitória Global: {win_rate:.2f}%")
-    print("=" * 75 + "\n")
-
-
-# ==============================================================================
-# 3. STATUS DAS BATERIAS E TELEMETRIA
-# ==============================================================================
-def show_battery_status():
-    """Lê e exibe o progresso das baterias gravadas em checkpoints."""
-    history_files = list(CHECKPOINTS_DIR.glob("*history*.json"))
-    if not history_files:
-        print("\n[!] Nenhum histórico de bateria encontrado em checkpoints/.")
-        return
-
-    print("\n" + "=" * 70)
-    print("           ♛ STATUS E HISTÓRICO DE BATERIAS NEURAIS ♛")
-    print("=" * 70)
-    for hf in history_files:
+    if CHECKPOINT_SELFPLAY.is_file():
         try:
-            with open(hf, "r", encoding="utf-8") as f:
+            with open(CHECKPOINT_SELFPLAY, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            cycles = data.get("cycles", [])
-            if cycles:
-                c = cycles[-1]
-                t = c.get("total_completed_games", 0)
-                w = c.get("global_neural_wins", 0)
-                dr = c.get("global_draws", 0)
-                l = c.get("global_engine_wins", 0)
-                wr = c.get("neural_win_rate", 0.0)
-                loss = c.get("loss", 0.0)
-                elapsed_min = c.get("total_elapsed_seconds", 0) / 60.0
-                print(f"\nArquivo: {hf.name}")
-                print(f"  • Total de Partidas : {t:,} partidas (Ciclo {c.get('cycle', '?')})")
-                print(f"  • Placar Geral      : {w:,} Vitórias | {dr:,} Empates | {l:,} Derrotas")
-                print(f"  • Taxa de Vitória   : {wr:.2f}% (Score: {((w + 0.5*dr)/max(1,t))*100:.2f}%)")
-                print(f"  • Loss Neural       : {loss:.4f} (AMP FP16)")
-                print(f"  • Tempo Decorrido   : {elapsed_min:.1f} minutos ({elapsed_min/60:.2f}h)")
+            sp_res = data.get("results", [])
+            sp_tot = len(sp_res)
+            w_w = sum(1 for r in sp_res if r.get("result") == "1-0")
+            b_w = sum(1 for r in sp_res if r.get("result") == "0-1")
+            dr = sum(1 for r in sp_res if r.get("result") in ("1/2-1/2", "*"))
+
+            sp_table.add_row("Partidas Concluídas", f"{sp_tot:,} partidas", f"100% da bateria oficial" if sp_tot >= 1000 else f"Meta: 1000")
+            sp_table.add_row("Vitórias das Brancas", f"{w_w} ({(w_w/max(1,sp_tot))*100:.1f}%)", "Vantagem de saída")
+            sp_table.add_row("Vitórias das Pretas", f"{b_w} ({(b_w/max(1,sp_tot))*100:.1f}%)", "Contra-ataques decisivos")
+            sp_table.add_row("Empates", f"{dr} ({(dr/max(1,sp_tot))*100:.1f}%)", "Regras oficiais / 50 lances")
+
+            pgn_file = REPORTS_DIR / "selfplay_1000_games.pgn"
+            if pgn_file.is_file():
+                pgn_mb = pgn_file.stat().st_size / (1024 * 1024)
+                sp_table.add_row("Arquivo PGN", pgn_file.name, f"{pgn_mb:.2f} MB armazenados")
         except Exception as e:
-            print(f"[!] Erro ao ler {hf.name}: {e}")
-    print("=" * 70 + "\n")
+            sp_table.add_row("Erro de Leitura", str(e), "-")
+    else:
+        sp_table.add_row("Status", "Nenhuma bateria registrada", "Execute a opção 3 para iniciar")
+
+    console.print(sp_table)
+
+    # 4. Documentos e Relatórios
+    doc_table = Table(title="📜 Relatórios Oficiais Gerados em relatorios_avancos/", box=box.ROUNDED, border_style="yellow")
+    doc_table.add_column("Arquivo Markdown", style="bold white")
+    doc_table.add_column("Tamanho", style="yellow")
+    doc_table.add_column("Data", style="cyan")
+
+    reports = sorted(list(REPORTS_DIR.glob("*.md")))
+    if reports:
+        for rp in reports:
+            st = rp.stat()
+            dt = datetime.datetime.fromtimestamp(st.st_mtime).strftime("%Y-%m-%d %H:%M")
+            doc_table.add_row(rp.name, f"{st.st_size/1024:.1f} KB", dt)
+    else:
+        doc_table.add_row("Nenhum relatório encontrado", "-", "-")
+
+    console.print(doc_table)
+    console.print()
 
 
 # ==============================================================================
-# 4. CATÁLOGO DOS 217 BOTS OFICIAIS DO CHESS.COM
+# 3. CATÁLOGO DOS 217 BOTS OFICIAIS DO CHESS.COM
 # ==============================================================================
-def list_bots(query: Optional[str] = None, category_filter: Optional[str] = None):
-    """Consulta os 217 bots do com.chess com filtragem flexível."""
-    from chess_bots import ChessBotsManager
+def show_bots_catalog(query: Optional[str] = None, category_filter: Optional[str] = None):
+    """Consulta os 217 bots oficiais com busca e formatação Rich."""
     mgr = ChessBotsManager(CURRENT_DIR)
     groups = mgr.get_all_groups()
 
-    print("\n" + "=" * 70)
-    print(f"      ♛ CATÁLOGO OFICIAL DE BOTS DO CHESS.COM ({len(groups)} Categorias) ♛")
-    print("=" * 70)
+    console.print(f"\n[bold green]>>> CATÁLOGO OFICIAL DE BOTS DO CHESS.COM ({len(groups)} Categorias) <<<[/bold green]")
 
-    total_found = 0
+    table = Table(box=box.ROUNDED, border_style="cyan")
+    table.add_column("#", style="dim white", width=4)
+    table.add_column("Nome", style="bold bright_white", width=18)
+    table.add_column("Categoria", style="cyan", width=18)
+    table.add_column("Rating", style="bold yellow", justify="right", width=8)
+    table.add_column("Livro Polyglot", style="magenta", width=16)
+    table.add_column("Acesso", style="green", width=12)
+
+    total_listed = 0
+    idx = 1
     for g in groups:
-        g_name = g.get("name", "Geral")
-        if category_filter and category_filter.lower() not in g_name.lower():
+        cat_name = g.get("name", "Geral")
+        if category_filter and category_filter.lower() not in cat_name.lower():
             continue
         bots = g.get("botPersonalities", [])
-        matching = []
         for b in bots:
             name = b.get("name", "Bot")
             rating = str(b.get("rating", "?"))
+            book = b.get("book", "balanced")
+            can_play = "✓ Grátis" if b.get("canPlay") else "★ Premium"
+
             if query:
                 q = query.lower()
-                if q not in name.lower() and q not in rating:
+                if q not in name.lower() and q not in rating and q not in cat_name.lower() and q not in book.lower():
                     continue
-            matching.append(b)
 
-        if matching:
-            print(f"\n--- {g_name} ({len(matching)} bots) ---")
-            for b in matching:
-                total_found += 1
-                b_name = b.get("name", "Bot")
-                b_elo = b.get("rating", "?")
-                b_book = b.get("book", "balanced")
-                print(f"  • {b_name:<18} | Elo: {b_elo:<5} | Livro: {b_book}")
+            table.add_row(str(idx), name, cat_name, rating, book, can_play)
+            total_listed += 1
+            idx += 1
 
-    print(f"\n[*] Total de bots listados: {total_found}")
-    print("=" * 70 + "\n")
+    console.print(table)
+    console.print(f"[bold cyan]Total de bots encontrados: {total_listed}[/bold cyan]\n")
 
 
 # ==============================================================================
-# 5. DUELO NO TERMINAL
+# 4. DUELO NO TERMINAL
 # ==============================================================================
-def play_terminal(bot_name: str = "Nelson", player_color: str = "white"):
+def start_terminal_duel(bot_name: str = "Nelson", player_color: str = "white"):
     """Inicia duelo interativo no terminal."""
-    from chess_bots import ChessBotsManager
     mgr = ChessBotsManager(CURRENT_DIR)
-    mgr.play_game(bot_name=bot_name, player_is_white=(player_color.lower() != "black"))
+    is_white = (player_color.lower() != "black")
+    mgr.play_game(bot_name=bot_name, player_is_white=is_white)
 
 
 # ==============================================================================
-# 6. AVALIAÇÃO DE FEN COM REDE NEURAL & MCTS
+# 5. AVALIAÇÃO NEURAL DE FEN
 # ==============================================================================
-def evaluate_fen(fen: str, sims: int = 50):
-    """Avalia posição de xadrez com política neural e MCTS."""
+def evaluate_position(fen: str, sims: int = 50):
+    """Avalia posição com SE-ResNet e MCTS."""
     import chess
     import torch
     from chess_ai.agent import NeuralChessBot
     from chess_ai.model import ChessPolicyValueNet
 
-    board = chess.Board(fen)
+    console.print("\n[bold green]>>> AVALIANDO POSIÇÃO COM REDE NEURAL SE-RESNET + MCTS <<<[/bold green]")
+    try:
+        board = chess.Board(fen)
+    except Exception as e:
+        console.print(f"[bold red][!] FEN inválida: {e}[/bold red]")
+        return
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if WEIGHTS_PATH.is_file():
         model = ChessPolicyValueNet.load_weights(WEIGHTS_PATH, device=str(device))
@@ -282,112 +318,218 @@ def evaluate_fen(fen: str, sims: int = 50):
 
     agent = NeuralChessBot(model=model, device=device, use_mcts=True, mcts_sims=sims)
     move, info = agent.get_best_move(board, use_mcts=True, num_simulations=sims)
-    print("\n" + "=" * 60)
-    print("        ♛ AVALIAÇÃO NEURAL DE POSIÇÃO (MCTS) ♛")
-    print("=" * 60)
-    print(f" [*] FEN             : {fen}")
-    print(f" [*] Melhor Lance    : {move} ({board.san(move) if move else 'Nenhum'})")
-    print(f" [*] Fonte           : {info.get('source')}")
-    print(f" [*] Avaliação Valor : {info.get('value', 0.0):.3f}")
-    print(f" [*] Confiança       : {info.get('probability', 0.0)*100:.1f}%")
-    print("=" * 60 + "\n")
+
+    san = board.san(move) if move else "Nenhum"
+    val = info.get("value", 0.0)
+    prob = info.get("probability", 0.0) * 100.0
+    src = info.get("source", "mcts_neural")
+
+    t = Table(box=box.ROUNDED, border_style="gold1")
+    t.add_column("Métrica", style="bold white")
+    t.add_column("Avaliação", style="bright_yellow")
+    t.add_row("FEN Analisada", fen)
+    t.add_row("Melhor Lance Recomendado", f"{move} ({san})")
+    t.add_row("Fonte de Decisão", src)
+    t.add_row("Valor Posicional [-1.0 a +1.0]", f"{val:+.3f}")
+    t.add_row("Confiança Política", f"{prob:.1f}%")
+    t.add_row("Simulações MCTS Executadas", str(sims))
+    t.add_row("Dispositivo de Inferência", f"{device} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})")
+
+    console.print(t)
+    console.print()
 
 
 # ==============================================================================
-# 7. EXECUÇÃO DE TESTES
+# 6. TESTES AUTOMATIZADOS (PYTEST)
 # ==============================================================================
-def run_tests():
-    """Roda a suíte de testes com pytest."""
+def run_pytest_suite():
+    """Executa a suíte de testes do projeto."""
+    console.print("\n[bold green]>>> EXECUTANDO SUÍTE DE TESTES AUTOMATIZADOS (PYTEST) <<<[/bold green]\n")
     cmd = [sys.executable, "-m", "pytest", "-v"]
     subprocess.run(cmd, cwd=str(CURRENT_DIR))
 
 
 # ==============================================================================
-# MENU INTERATIVO (CANIVETE SUÍÇO)
+# MENU INTERATIVO RICH
 # ==============================================================================
 def interactive_menu():
+    """Loop do menu principal Rich."""
     while True:
-        print("\n" + "=" * 70)
-        print("          ♛ S_NEURA_GYM: CANIVETE SUÍÇO DO CHESS_BOT ♛")
-        print("=" * 70)
-        print(" [1] Ligar GymArena Mobile Server (Interface Web na porta 8000)")
-        print(" [2] Rodar Bateria de Partidas (Neural_Bot vs Bots do Chess.com)")
-        print(" [3] Ver Status e Telemetria das Baterias / Checkpoints")
-        print(" [4] Consultar Catálogo Completo dos 217 Bots Oficiais")
-        print(" [5] Jogar Duelo Interativo no Terminal contra um Bot")
-        print(" [6] Avaliar Posição FEN com Neural Policy + MCTS")
-        print(" [7] Executar Suíte de Testes Automatizados (pytest)")
-        print(" [0] Sair")
-        print("=" * 70)
-        choice = input("Escolha uma opção (0-7): ").strip()
+        print_banner()
+
+        menu_table = Table(box=box.ROUNDED, border_style="bright_blue", show_header=True)
+        menu_table.add_column("Opção", style="bold yellow", justify="center", width=7)
+        menu_table.add_column("Utilitário / Funcionalidade", style="bold white", width=38)
+        menu_table.add_column("Descrição Detalhada", style="dim cyan")
+
+        menu_table.add_row("1", "🌐 GymArena Mobile Server", "Inicia servidor web local (FastAPI + WebSocket) na porta 8000")
+        menu_table.add_row("2", "🏆 Torneio MD3 Oficial", "Executa torneio 30x acelerado contra os 217 bots do Chess.com")
+        menu_table.add_row("3", "♟️ Bateria de Self-Play", "Gera 1.000 partidas aceleradas Neura vs Neura com PGN")
+        menu_table.add_row("4", "🧠 Treinar Rede Neural", "Ajuste fino da SE-ResNet com AMP FP16 na GPU RTX 3060")
+        menu_table.add_row("5", "🚀 Pipeline Master Completo", "Encadeia Torneio + Self-Play + Treino + Relatórios + Git Sync")
+        menu_table.add_row("6", "⚔️ Duelo Interativo no Terminal", "Jogue contra qualquer bot oficial com abertura Polyglot real")
+        menu_table.add_row("7", "📖 Catálogo dos 217 Bots", "Pesquise e inspecione ratings, livros, estilo e falas dos bots")
+        menu_table.add_row("8", "📊 Dashboard & Status", "Painel de telemetria, checkpoints, vitórias e relatórios")
+        menu_table.add_row("9", "🎯 Avaliar Posição FEN", "Inferência com a SE-ResNet e busca MCTS profunda")
+        menu_table.add_row("10", "🧪 Suíte de Testes (pytest)", "Executa os 50 testes automatizados da arquitetura")
+        menu_table.add_row("0", "🚪 Sair", "Encerra o Canivete Suíço")
+
+        console.print(menu_table)
+        choice = Prompt.ask("\n[bold yellow]Escolha uma opção (0-10)[/bold yellow]", default="8").strip()
 
         if choice == "1":
-            port_str = input("Porta do servidor (pressione Enter para 8000): ").strip()
-            port = int(port_str) if port_str.isdigit() else 8000
+            port = IntPrompt.ask("[cyan]Porta do servidor web[/cyan]", default=8000)
             start_arena(port=port)
         elif choice == "2":
-            games_str = input("Quantas partidas deseja simular? (padrão: 10000): ").strip()
-            games = int(games_str) if games_str.isdigit() else 10000
-            workers_str = input("Quantos workers paralelos? (padrão: 64): ").strip()
-            workers = int(workers_str) if workers_str.isdigit() else 64
-            cycle_str = input("Partidas por ciclo de aprendizado? (padrão: 250): ").strip()
-            cycle = int(cycle_str) if cycle_str.isdigit() else 250
-            run_battery(total_games=games, workers=workers, cycle_games=cycle)
+            workers = IntPrompt.ask("[cyan]Workers paralelos (threads in-memory)[/cyan]", default=4)
+            fresh = Confirm.ask("[cyan]Deseja reiniciar do zero descartando checkpoint?[/cyan]", default=False)
+            run_tournament(workers=workers, fresh=fresh)
         elif choice == "3":
-            show_battery_status()
+            games = IntPrompt.ask("[cyan]Total de partidas de auto-jogo[/cyan]", default=1000)
+            workers = IntPrompt.ask("[cyan]Workers paralelos[/cyan]", default=4)
+            fresh = Confirm.ask("[cyan]Deseja reiniciar do zero descartando PGN e checkpoint?[/cyan]", default=False)
+            run_selfplay(target_games=games, workers=workers, fresh=fresh)
         elif choice == "4":
-            q = input("Filtrar por nome ou Elo (Enter para todos): ").strip()
-            list_bots(query=q if q else None)
+            epochs = IntPrompt.ask("[cyan]Quantidade de épocas de treino[/cyan]", default=15)
+            batch = IntPrompt.ask("[cyan]Tamanho do lote (batch size)[/cyan]", default=512)
+            train_pipeline(epochs=epochs, batch_size=batch)
         elif choice == "5":
-            bot = input("Nome do bot (ex: Nelson, Martin, Hikaru, Maximum): ").strip() or "Nelson"
-            col = input("Sua cor (white/black, padrão white): ").strip() or "white"
-            play_terminal(bot_name=bot, player_color=col)
+            confirm_pipe = Confirm.ask("[cyan]Deseja iniciar o Pipeline Master completo agora?[/cyan]", default=True)
+            if confirm_pipe:
+                run_full_pipeline()
         elif choice == "6":
-            fen = input("Cole a string FEN: ").strip()
-            if fen:
-                evaluate_fen(fen)
-            else:
-                print("[!] FEN vazia.")
+            bot = Prompt.ask("[cyan]Nome do bot adversário[/cyan]", default="Nelson").strip()
+            color = Prompt.ask("[cyan]Sua cor (white/black)[/cyan]", default="white").strip()
+            start_terminal_duel(bot_name=bot, player_color=color)
         elif choice == "7":
-            run_tests()
+            q = Prompt.ask("[cyan]Filtro por nome, Elo ou categoria (Enter para todos)[/cyan]", default="").strip()
+            show_bots_catalog(query=q if q else None)
+        elif choice == "8":
+            show_dashboard()
+        elif choice == "9":
+            fen = Prompt.ask("[cyan]Cole a string FEN[/cyan]", default="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").strip()
+            sims = IntPrompt.ask("[cyan]Número de simulações MCTS[/cyan]", default=50)
+            evaluate_position(fen, sims=sims)
+        elif choice == "10":
+            run_pytest_suite()
         elif choice == "0":
-            print("\nAté logo!")
+            console.print("\n[bold cyan]Até logo e boas partidas! ♟️[/bold cyan]\n")
             break
         else:
-            print("\n[!] Opção inválida.")
+            console.print("[bold red][!] Opção inválida.[/bold red]")
+
+        Prompt.ask("\n[dim]Pressione Enter para voltar ao menu...[/dim]")
 
 
+# ==============================================================================
+# SUBCOMANDOS DE LINHA DE COMANDO (ARGPARSE)
+# ==============================================================================
 def main():
-    parser = argparse.ArgumentParser(description="Canivete Suíço Universal do Chess_Bot (s_Neura_Gym)")
-    parser.add_argument("--arena", action="store_true", help="Inicia o servidor web da GymArena")
-    parser.add_argument("--port", type=int, default=8000, help="Porta do servidor da arena (padrão: 8000)")
-    parser.add_argument("--battery", action="store_true", help="Executa bateria de partidas")
-    parser.add_argument("--games", type=int, default=10000, help="Quantidade de partidas da bateria (padrão: 10000)")
-    parser.add_argument("--workers", type=int, default=64, help="Número de workers simultâneos (padrão: 64)")
-    parser.add_argument("--cycle-games", type=int, default=250, help="Partidas por ciclo de treinamento")
-    parser.add_argument("--status", action="store_true", help="Exibe status e telemetria de baterias anteriores")
-    parser.add_argument("--bots", action="store_true", help="Lista catálogo de bots oficiais")
-    parser.add_argument("--query", type=str, default=None, help="Filtro para busca de bots")
-    parser.add_argument("--play", action="store_true", help="Joga no terminal")
-    parser.add_argument("--bot-name", type=str, default="Nelson", help="Nome do bot para duelo no terminal")
-    parser.add_argument("--eval-fen", type=str, default=None, help="Avalia posição FEN com MCTS")
-    parser.add_argument("--test", action="store_true", help="Roda a suíte de testes com pytest")
+    parser = argparse.ArgumentParser(
+        description="Canivete Suíço Universal do Chess_Bot (s_Neura_Gym)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    subparsers = parser.add_subparsers(dest="command", help="Comando a executar")
+
+    # arena
+    p_arena = subparsers.add_parser("arena", help="Inicia o servidor web da GymArena Mobile")
+    p_arena.add_argument("--host", type=str, default="0.0.0.0", help="Host de escuta (padrão: 0.0.0.0)")
+    p_arena.add_argument("--port", type=int, default=8000, help="Porta TCP (padrão: 8000)")
+    p_arena.add_argument("--reload", action="store_true", help="Auto-reload em modificações")
+
+    # torneio
+    p_tourn = subparsers.add_parser("torneio", help="Executa torneio MD3 contra os 217 bots")
+    p_tourn.add_argument("--workers", type=int, default=4, help="Workers simultâneos (padrão: 4)")
+    p_tourn.add_argument("--fresh", action="store_true", help="Reinicia descartando checkpoint")
+    p_tourn.add_argument("--resume", action="store_true", help="Continua de checkpoint prévio")
+    p_tourn.add_argument("--max-bots", type=int, default=None, help="Limite de bots a disputar")
+
+    # selfplay
+    p_sp = subparsers.add_parser("selfplay", help="Executa bateria de partidas de auto-jogo com PGN")
+    p_sp.add_argument("--games", type=int, default=1000, help="Meta de partidas (padrão: 1000)")
+    p_sp.add_argument("--workers", type=int, default=4, help="Workers paralelos (padrão: 4)")
+    p_sp.add_argument("--fresh", action="store_true", help="Reinicia descartando PGN e checkpoint")
+    p_sp.add_argument("--resume", action="store_true", help="Continua do checkpoint anterior")
+
+    # treinar
+    p_tr = subparsers.add_parser("treinar", help="Ajuste fino neural da SE-ResNet na GPU RTX 3060")
+    p_tr.add_argument("--epochs", type=int, default=15, help="Quantidade de épocas (padrão: 15)")
+    p_tr.add_argument("--batch-size", type=int, default=512, help="Tamanho do lote (padrão: 512)")
+    p_tr.add_argument("--lr", type=float, default=1e-3, help="Taxa de aprendizado inicial")
+    p_tr.add_argument("--rebuild", action="store_true", help="Reconstrói tensores sem usar cache")
+    p_tr.add_argument("--no-validation", action="store_true", help="Pula duelos de validação pós-treino")
+
+    # pipeline
+    p_pipe = subparsers.add_parser("pipeline", help="Executa pipeline completo automatizado")
+    p_pipe.add_argument("--skip-tournament", action="store_true", help="Pula a fase de torneio")
+    p_pipe.add_argument("--skip-selfplay", action="store_true", help="Pula a fase de self-play")
+    p_pipe.add_argument("--skip-train", action="store_true", help="Pula a fase de treino neural")
+    p_pipe.add_argument("--tournament-workers", type=int, default=4, help="Workers no torneio")
+    p_pipe.add_argument("--selfplay-games", type=int, default=1000, help="Partidas de self-play")
+    p_pipe.add_argument("--selfplay-workers", type=int, default=4, help="Workers no self-play")
+    p_pipe.add_argument("--epochs", type=int, default=15, help="Épocas de treino")
+    p_pipe.add_argument("--no-git", action="store_true", help="Não sincroniza com Git ao final")
+
+    # duelo
+    p_duel = subparsers.add_parser("duelo", help="Inicia duelo interativo no terminal")
+    p_duel.add_argument("--bot", type=str, default="Nelson", help="Nome do bot adversário")
+    p_duel.add_argument("--color", type=str, default="white", choices=["white", "black"], help="Sua cor")
+
+    # bots
+    p_bots = subparsers.add_parser("bots", help="Lista e consulta catálogo dos 217 bots")
+    p_bots.add_argument("--query", type=str, default=None, help="Filtro de busca por nome ou Elo")
+    p_bots.add_argument("--category", type=str, default=None, help="Filtro por categoria")
+
+    # status
+    subparsers.add_parser("status", help="Exibe dashboard de status, checkpoints e telemetria")
+
+    # avaliar
+    p_eval = subparsers.add_parser("avaliar", help="Avalia posição FEN com a rede neural e MCTS")
+    p_eval.add_argument("fen", type=str, help="Posição FEN a ser avaliada")
+    p_eval.add_argument("--sims", type=int, default=50, help="Simulações MCTS (padrão: 50)")
+
+    # test
+    subparsers.add_parser("test", help="Executa a suíte de testes com pytest")
+
     args = parser.parse_args()
 
-    if args.arena:
-        start_arena(port=args.port)
-    elif args.battery:
-        run_battery(total_games=args.games, workers=args.workers, cycle_games=args.cycle_games)
-    elif args.status:
-        show_battery_status()
-    elif args.bots:
-        list_bots(query=args.query)
-    elif args.play:
-        play_terminal(bot_name=args.bot_name)
-    elif args.eval_fen:
-        evaluate_fen(args.eval_fen)
-    elif args.test:
-        run_tests()
+    if args.command == "arena":
+        start_arena(host=args.host, port=args.port, reload=args.reload)
+    elif args.command == "torneio":
+        fresh = args.fresh or (not args.resume and not CHECKPOINT_TOURNAMENT.is_file())
+        run_tournament(workers=args.workers, fresh=fresh, max_bots=args.max_bots)
+    elif args.command == "selfplay":
+        fresh = args.fresh or (not args.resume and not CHECKPOINT_SELFPLAY.is_file())
+        run_selfplay(target_games=args.games, workers=args.workers, fresh=fresh)
+    elif args.command == "treinar":
+        train_pipeline(
+            epochs=args.epochs,
+            batch_size=args.batch_size,
+            lr=args.lr,
+            force_rebuild_dataset=args.rebuild,
+            run_validation_duels=not args.no_validation,
+        )
+    elif args.command == "pipeline":
+        run_full_pipeline(
+            run_tournament_phase=not args.skip_tournament,
+            run_selfplay_phase=not args.skip_selfplay,
+            run_training_phase=not args.skip_train,
+            tournament_workers=args.tournament_workers,
+            selfplay_games=args.selfplay_games,
+            selfplay_workers=args.selfplay_workers,
+            train_epochs=args.epochs,
+            sync_git=not args.no_git,
+        )
+    elif args.command == "duelo":
+        start_terminal_duel(bot_name=args.bot, player_color=args.color)
+    elif args.command == "bots":
+        show_bots_catalog(query=args.query, category_filter=args.category)
+    elif args.command == "status":
+        show_dashboard()
+    elif args.command == "avaliar":
+        evaluate_position(args.fen, sims=args.sims)
+    elif args.command == "test":
+        run_pytest_suite()
     else:
         interactive_menu()
 
