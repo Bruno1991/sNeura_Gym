@@ -109,6 +109,8 @@ class MCTSNode:
         """Expande o nó criando filhos para todos os lances legais com seus priors e Zobrist Transposition Graph."""
         self.children.clear()
         for move, prior in move_priors.items():
+            if move not in self.board.legal_moves:
+                continue
             child_board = self.board.copy(stack=False)
             child_board.push(move)
             z_hash = chess.polyglot.zobrist_hash(child_board)
@@ -445,9 +447,16 @@ class NeuralMCTS:
 
                     traversals.append((node, search_path))
 
-                to_eval_nodes = [node.board for node, _ in traversals if not node.is_terminal and not node.is_expanded]
-                eval_results = self.evaluate_batch(to_eval_nodes) if to_eval_nodes else []
-                eval_idx = 0
+                unexpanded_nodes = []
+                for node, _ in traversals:
+                    if not node.is_terminal and not node.is_expanded and node not in unexpanded_nodes:
+                        unexpanded_nodes.append(node)
+
+                if unexpanded_nodes:
+                    eval_results = self.evaluate_batch([n.board for n in unexpanded_nodes])
+                    node_eval_map = {n: res for n, res in zip(unexpanded_nodes, eval_results)}
+                else:
+                    node_eval_map = {}
 
                 for node, search_path in traversals:
                     for n in search_path:
@@ -455,9 +464,8 @@ class NeuralMCTS:
 
                     if node.is_terminal:
                         value = node.terminal_value
-                    elif not node.is_expanded and eval_idx < len(eval_results):
-                        priors, value = eval_results[eval_idx]
-                        eval_idx += 1
+                    elif not node.is_expanded and node in node_eval_map:
+                        priors, value = node_eval_map[node]
                         if not node.board.is_game_over(claim_draw=True):
                             node.expand(priors, transposition_graph=transposition_graph)
                             if any(node.board.is_capture(m) for m in node.board.legal_moves):

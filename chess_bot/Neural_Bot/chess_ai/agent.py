@@ -42,7 +42,7 @@ class NeuralChessBot:
         use_book: bool = True,
         syzygy_path: Optional[str | Path] = None,
         use_pvs_blunder_guard: bool = True,
-        pvs_depth: int = 8,
+        pvs_depth: int = 3,
     ):
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -50,6 +50,10 @@ class NeuralChessBot:
             self.device = torch.device(device)
 
         self.model: Optional[ChessPolicyValueNet] = model
+        if weights_path is None and model is None:
+            default_p = Path(__file__).resolve().parent.parent / "checkpoints" / "chess_policy_weights.pt"
+            if default_p.is_file():
+                weights_path = default_p
         self.weights_path = Path(weights_path) if weights_path else None
         self.use_book = use_book
         self.opening_books: List[Path] = []
@@ -278,7 +282,7 @@ class NeuralChessBot:
             non_draw_moves = []
             for m, p in sorted_moves:
                 board.push(m)
-                is_draw_3 = board.can_claim_threefold_repetition() or board.is_repetition(3)
+                is_draw_3 = board.can_claim_threefold_repetition() or board.is_repetition(3) or board.can_claim_fifty_moves()
                 board.pop()
                 if not is_draw_3:
                     non_draw_moves.append((m, p))
@@ -295,6 +299,37 @@ class NeuralChessBot:
                         progressive_moves.append((m, p))
                 if progressive_moves:
                     sorted_moves = progressive_moves
+
+            # 2.2 Impulso Agressivo Anti-50 Lances (Reset de Relógio por Peão ou Captura):
+            # Se o relógio de 50 lances atingir 35 plies (17 lances sem progresso),
+            # prioriza imediatamente avanços de peões e capturas para evitar empate por inanição!
+            if board.halfmove_clock >= 35 and len(sorted_moves) > 1:
+                clock_resetters = []
+                for m, p in sorted_moves:
+                    pc = board.piece_at(m.from_square)
+                    if (pc and pc.piece_type == chess.PAWN) or board.is_capture(m):
+                        clock_resetters.append((m, p + 0.50))
+                if clock_resetters:
+                    clock_resetters.sort(key=lambda x: x[1], reverse=True)
+                    seen_m = {m for m, _ in clock_resetters}
+                    sorted_moves = clock_resetters + [x for x in sorted_moves if x[0] not in seen_m]
+
+            # 2.3 Corrida de Promoção de Peões Passados em Finais (Queening Drive):
+            if len(board.piece_map()) <= 16 and len(sorted_moves) > 1:
+                queening_moves = []
+                for m, p in sorted_moves:
+                    pc = board.piece_at(m.from_square)
+                    if pc and pc.piece_type == chess.PAWN:
+                        to_rank = chess.square_rank(m.to_square)
+                        # Promoção direta ou avanço para 6ª/7ª fileira
+                        if m.promotion:
+                            queening_moves.append((m, p + 2.0))
+                        elif (to_rank >= 5 if board.turn == chess.WHITE else to_rank <= 2):
+                            queening_moves.append((m, p + 0.60))
+                if queening_moves:
+                    queening_moves.sort(key=lambda x: x[1], reverse=True)
+                    seen_qm = {m for m, _ in queening_moves}
+                    sorted_moves = queening_moves + [x for x in sorted_moves if x[0] not in seen_qm]
         elif not is_contempt_active and (mat_opp - mat_cur >= 200 or eval_val <= -0.4):
             # Salvação Tática de Finais (Swindle): se estamos perdendo material, o empate por repetição é vitória!
             for m, p in sorted_moves:

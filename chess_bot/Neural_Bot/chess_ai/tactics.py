@@ -271,16 +271,20 @@ def is_decisive_endgame(board: chess.Board) -> bool:
     opp_mat = sum(vals.get(p.piece_type, 0) for p in piece_map.values() if p.color == opp_color)
     mat_lead = my_mat - opp_mat
 
-    # Caso 1: Oponente sem peças pesadas/menores (só Rei ou Rei + peões) e nós temos Dama/Torre/Vantagem >= 300
-    if opp_heavy == 0 and opp_minors == 0 and (my_heavy >= 1 or mat_lead >= 300):
+    # Caso 1: Oponente sem peças pesadas/menores (só Rei ou Rei + peões) e nós temos Dama/Torre/Vantagem >= 180
+    if opp_heavy == 0 and opp_minors == 0 and (my_heavy >= 1 or mat_lead >= 180):
         return True
 
-    # Caso 2: Oponente tem no máximo 1 peça menor e nós temos Dama/Torre com vantagem >= 400
-    if opp_heavy == 0 and opp_minors <= 1 and my_heavy >= 1 and mat_lead >= 400:
+    # Caso 2: Oponente tem no máximo 1 peça menor e nós temos Dama/Torre com vantagem >= 250
+    if opp_heavy == 0 and opp_minors <= 1 and my_heavy >= 1 and mat_lead >= 250:
         return True
 
-    # Caso 3: Tabuleiro com poucas peças (<= 8 peças) e liderança de material >= 250
-    if total_pieces <= 8 and mat_lead >= 250:
+    # Caso 3: Tabuleiro com poucas peças (<= 12 peças) e liderança de material >= 180
+    if total_pieces <= 12 and mat_lead >= 180:
+        return True
+
+    # Caso 4: Vantagem material clara (>= 280) em posições simplificadas (<= 16 peças)
+    if mat_lead >= 280 and total_pieces <= 16:
         return True
 
     return False
@@ -341,10 +345,17 @@ def endgame_alpha_beta(
             if is_sm:
                 return -10000
             score = 0
+            if m.promotion:
+                score += 3000
             if board.is_capture(m):
                 score += 500
             if is_chk:
-                score += 200
+                score += 250
+            # Incentivo para empurrar peões passados em finais
+            p = board.piece_at(m.from_square)
+            if p and p.piece_type == chess.PAWN:
+                to_r = chess.square_rank(m.to_square)
+                score += (to_r if my_color == chess.WHITE else (7 - to_r)) * 100
             if m.from_square == board.king(my_color):
                 score += 150
             return score
